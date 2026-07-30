@@ -1,10 +1,12 @@
 # World News CLI
 
-[PyPI version](https://pypi.org/project/worldnews-cli/)
-[Python versions](https://pypi.org/project/worldnews-cli/)
-[License: MIT](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/worldnews-cli.svg)](https://pypi.org/project/worldnews-cli/0.4.2/)
+[![Python](https://img.shields.io/pypi/pyversions/worldnews-cli.svg)](https://pypi.org/project/worldnews-cli/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Full-screen terminal news reader built with [Textual](https://textual.textualize.io/). Sidebar, headlines, article pane, themes, AI summarize/explain, and text-to-speech that can highlight the sentence being read.
+
+**Live on PyPI:** [worldnews-cli 0.4.2](https://pypi.org/project/worldnews-cli/0.4.2/)
 
 Requires Python 3.9+.
 
