@@ -1,0 +1,741 @@
+/* Hallmark · macrostructure: Workbench · genre: editorial · theme: newsroom
+ * tone: editorial-newsroom · anchor hue: warm-ink
+ * medium: Textual TUI · nav: N3 side-rail · footer: Ft1 folio-strip
+ * pre-emit critique: P5 H5 E4 S4 R5 V4
+ *
+ * Workbench = feeds rail | headline index | article column
+ * Restraint: hairlines, one accent, no purple glow, no pill clusters
+ */
+
+Screen {
+    background: $background;
+}
+
+/* ── Masthead ─────────────────────────────────────────── */
+
+#app-header {
+    dock: top;
+    height: 1;
+    background: $surface;
+    color: $foreground;
+    padding: 0 1;
+    border-bottom: solid $panel;
+}
+
+#header-title {
+    width: auto;
+    text-style: bold;
+    color: $accent;
+    padding-right: 2;
+}
+
+#header-crumbs {
+    width: 1fr;
+    color: $text-muted;
+}
+
+#header-status {
+    width: auto;
+    text-align: right;
+    color: $secondary;
+    padding-left: 1;
+}
+
+#body {
+    height: 1fr;
+}
+
+#body.tiny #article-pane,
+#body.tiny #reader-pane,
+#body.phone #article-pane,
+#body.phone #reader-pane {
+    min-width: 0;
+}
+
+/* Phone single-column: list OR reader */
+#body.reading.phone #article-pane,
+#body.reading.narrow #article-pane,
+#article-pane.hidden-narrow {
+    display: none;
+    width: 0;
+    min-width: 0;
+}
+
+#body.reading #reader-pane {
+    width: 1fr;
+    min-width: 0;
+}
+
+#body.phone #header-status {
+    display: none;
+}
+
+#body.phone #header-title {
+    padding-right: 1;
+}
+
+#body.short #app-header {
+    height: 1;
+}
+
+#body.phone #folio {
+    height: auto;
+}
+
+#body.tiny #keyhints {
+    height: 1;
+}
+
+/* ── Side rail (feeds) ────────────────────────────────── */
+
+#sidebar {
+    width: 20;
+    min-width: 16;
+    background: $surface;
+    border-right: solid $panel;
+    padding: 0;
+    overflow: hidden;
+}
+
+#sidebar.compact {
+    width: 0;
+    display: none;
+}
+
+#sidebar:focus-within {
+    border-right: solid $accent;
+}
+
+FeedSidebar {
+    height: 1fr;
+    width: 100%;
+    overflow: hidden;
+}
+
+FeedSidebar > ListView {
+    height: 1fr;
+    width: 100%;
+    overflow-x: hidden;
+}
+
+FeedSidebar ListItem {
+    padding: 0 1;
+    height: 1;
+    width: 100%;
+    overflow: hidden;
+    color: $foreground;
+}
+
+FeedSidebar .list-item--highlighted {
+    background: $panel;
+    color: $primary;
+    text-style: bold;
+    /* solid (1 cell) — thick overflowed past the rail into the list pane */
+    border-left: solid $accent;
+    padding-left: 0;
+}
+
+FeedSidebar .modal-title {
+    padding: 0 1;
+    color: $secondary;
+    text-style: bold;
+    background: $background;
+    border-bottom: solid $panel;
+    height: 1;
+}
+
+/* ── Headline index ───────────────────────────────────── */
+
+#article-pane {
+    width: 1fr;
+    min-width: 30;
+    background: $background;
+}
+
+#article-pane:focus-within {
+    border: solid $accent 50%;
+}
+
+ArticleList {
+    height: 1fr;
+}
+
+#list-stack {
+    height: 1fr;
+    width: 100%;
+}
+
+#list-stack.fetching #article-list {
+    display: none;
+    height: 0;
+}
+
+#fetch-panel {
+    display: none;
+    width: 100%;
+    height: 1fr;
+    padding: 2 3;
+    background: $surface;
+    color: $foreground;
+}
+
+#fetch-panel.visible {
+    display: block;
+}
+
+ArticleList > ListView,
+#list-stack > ListView {
+    height: 1fr;
+    padding: 0;
+}
+
+ArticleList ListItem {
+    padding: 0 1;
+    height: 1;
+    color: $foreground;
+}
+
+ArticleList .list-item--highlighted {
+    background: $panel;
+    color: $primary;
+    text-style: bold;
+}
+
+ArticleList .fetch-title {
+    color: $accent;
+    text-style: bold;
+    background: $surface;
+}
+
+ArticleList .fetch-row {
+    color: $text-muted;
+}
+
+ArticleList .fetch-skel {
+    color: $panel;
+}
+
+LoadMoreItem {
+    color: $accent;
+    text-style: bold;
+    background: $surface;
+}
+
+/* Loading — solid cover so panes never look empty */
+.loading-cover {
+    width: 100%;
+    height: 100%;
+    background: $surface;
+}
+
+.loading-panel {
+    width: auto;
+    height: auto;
+    align: center middle;
+    padding: 1 2;
+    background: $surface;
+}
+
+.loading-msg {
+    color: $primary;
+    text-style: bold;
+    text-align: center;
+    margin-top: 1;
+    width: auto;
+}
+
+.loading-hint {
+    color: $text-muted;
+    text-align: center;
+    margin-top: 0;
+    width: auto;
+}
+
+LoadingIndicator {
+    width: 24;
+    height: 1;
+    color: $accent;
+}
+
+#filter-bar {
+    dock: top;
+    height: 3;
+    display: none;
+    background: $surface;
+    padding: 0 1;
+    border-bottom: solid $panel;
+}
+
+#filter-bar.visible {
+    display: block;
+}
+
+#filter-input {
+    width: 1fr;
+    border: solid $panel;
+}
+
+/* ── Article column ───────────────────────────────────── */
+
+#reader-pane {
+    width: 1fr;
+    min-width: 34;
+    background: $surface;
+    border-left: solid $panel;
+    padding: 0;
+}
+
+#reader-pane.hidden-narrow {
+    display: none;
+}
+
+#reader-pane:focus-within {
+    border-left: solid $accent;
+}
+
+ArticleReader {
+    height: 1fr;
+    layout: vertical;
+}
+
+#reader-chrome {
+    height: 1fr;
+}
+
+#reader-eyebrow {
+    dock: top;
+    height: 1;
+    padding: 0 2;
+    color: $accent;
+    text-style: bold;
+    background: $background;
+    border-bottom: solid $panel;
+}
+
+#reader-scroll {
+    height: 1fr;
+    padding: 0 1 1 1;
+    /* Always reserve scrollbar gutter — prevents width thrash / jump while reading */
+    scrollbar-size-vertical: 1;
+    overflow-x: hidden;
+}
+
+#reader-hero {
+    width: 100%;
+    height: auto;
+    margin: 0 0 1 0;
+    padding: 0;
+    background: $background;
+    border: none;
+}
+
+#reader-image {
+    width: 100%;
+    height: auto;
+    min-height: 8;
+    padding: 0;
+    margin: 0;
+    color: $foreground;
+    text-align: left;
+    overflow: hidden;
+}
+
+#reader-title {
+    width: 100%;
+    color: $primary;
+    text-style: bold;
+    margin: 0 0 1 0;
+    text-wrap: wrap;
+}
+
+#reader-meta {
+    width: 100%;
+    color: $text-muted;
+    margin: 0 0 1 0;
+    text-wrap: wrap;
+}
+
+#reader-rule {
+    color: $panel;
+    height: 1;
+    margin: 0 0 1 0;
+}
+
+#reader-body {
+    height: auto;
+    width: 100%;
+    margin: 0;
+    padding: 0 0 2 0;
+    color: $foreground;
+    text-wrap: wrap;
+}
+
+#reader-actions {
+    dock: bottom;
+    height: 3;
+    width: 100%;
+    align: left middle;
+    background: $background;
+    padding: 0 1;
+    border-top: solid $panel;
+}
+
+/* Hidden on desktop; shown via Python when list pane is hidden */
+#btn-back {
+    display: none;
+    min-width: 9;
+    border: solid $accent;
+    color: $accent;
+    text-style: bold;
+}
+
+#reader-actions Button {
+    margin-right: 1;
+    min-width: 11;
+    border: solid $panel;
+    background: $surface;
+    color: $foreground;
+}
+
+#reader-actions Button:hover {
+    background: $panel;
+    border: solid $accent;
+    color: $primary;
+}
+
+#reader-actions Button.-primary {
+    background: $panel;
+    border: solid $accent;
+    color: $accent;
+    text-style: bold;
+}
+
+/* Current activity (Speak / Summarize / Explain) — stronger than idle focus */
+#reader-actions Button.action-active,
+#reader-actions Button.action-active:focus {
+    background: $accent;
+    border: tall $accent;
+    color: $background;
+    text-style: bold;
+}
+
+/* ── Folio strip (status + key bindings) ──────────────── */
+/* height 3 = border row + status + keys (border must not clip hints) */
+
+#folio {
+    dock: bottom;
+    height: 3;
+    width: 100%;
+    background: $surface;
+    border-top: solid $accent;
+    layout: vertical;
+}
+
+#statusline {
+    height: 1;
+    width: 100%;
+    background: $panel;
+    color: $primary;
+    padding: 0 1;
+    text-style: bold;
+}
+
+#keyhints {
+    height: 1;
+    width: 100%;
+    background: $surface;
+    color: $foreground;
+    padding: 0 1;
+    text-style: none;
+}
+
+Toast {
+    dock: top;
+    layer: notification;
+    width: auto;
+    margin: 1 2;
+    padding: 0 2;
+    background: $surface;
+    color: $foreground;
+    border: solid $accent;
+}
+
+.toast-success {
+    border: solid $success;
+}
+
+.toast-error {
+    border: solid $error;
+}
+
+.toast-warning {
+    border: solid $warning;
+}
+
+/* ── Modals — slab, not glow cards ────────────────────── */
+
+HelpScreen,
+CommandPaletteScreen,
+SettingsScreen,
+AIResultModal,
+CompareScreen,
+SearchScreen,
+SummaryScreen,
+TrendingScreen,
+AddFeedScreen,
+ManageFeedsScreen,
+AIProviderScreen,
+VoiceSetupScreen,
+AIChatScreen {
+    align: center middle;
+    background: $background 60%;
+}
+
+.modal-box,
+#help-box,
+#palette-box,
+#settings-box,
+#ai-result-box,
+#ai-setup-box,
+#trending-box,
+#add-feed-box,
+#manage-feeds-box,
+#voice-setup-box {
+    background: $surface;
+    border: solid $accent;
+    padding: 1 2;
+    width: 100%;
+    max-width: 78;
+}
+
+/* Phone / Termux — Textual has no @media; App.phone/tiny set in _layout_adapt */
+App.phone .modal-box,
+App.phone #help-box,
+App.phone #palette-box,
+App.phone #settings-box,
+App.phone #ai-result-box,
+App.phone #ai-setup-box,
+App.phone #trending-box,
+App.phone #add-feed-box,
+App.phone #manage-feeds-box,
+App.phone #voice-setup-box {
+    width: 100%;
+    max-width: 100%;
+    padding: 1 1;
+    margin: 0;
+}
+
+App.phone #settings-box {
+    height: 100%;
+    max-height: 100%;
+}
+
+App.phone #help-box {
+    max-height: 100%;
+}
+
+App.phone #palette-box {
+    height: auto;
+    max-height: 80%;
+}
+
+App.tiny #app-header {
+    padding: 0;
+}
+
+App.tiny #fetch-panel {
+    padding: 1 1;
+}
+
+App.tiny #reader-actions Button {
+    min-width: 7;
+    padding: 0 1;
+}
+
+App.phone #btn-back,
+App.narrow #btn-back {
+    min-width: 8;
+}
+
+.modal-title {
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+}
+
+.settings-hint {
+    color: $text-muted;
+    margin-bottom: 1;
+}
+
+.settings-row {
+    height: auto;
+    margin-top: 1;
+}
+
+.settings-row Button {
+    margin-right: 1;
+    border: solid $panel;
+    background: $background;
+}
+
+#help-box {
+    width: 100%;
+    max-width: 72;
+    height: auto;
+    max-height: 90%;
+}
+
+#help-scroll {
+    height: auto;
+    max-height: 28;
+    margin-bottom: 1;
+}
+
+#help-body {
+    height: auto;
+    width: 100%;
+}
+
+#help-close {
+    dock: bottom;
+    width: auto;
+    min-width: 14;
+    height: 3;
+    content-align: center middle;
+}
+
+#palette-box {
+    width: 100%;
+    max-width: 64;
+    height: 20;
+}
+
+#palette-input {
+    margin-bottom: 1;
+    border: solid $panel;
+}
+
+#settings-box {
+    width: 100%;
+    max-width: 78;
+    height: 36;
+    max-height: 90%;
+}
+
+#settings-tabs {
+    height: 1fr;
+}
+
+.tab-scroll {
+    height: 1fr;
+    padding: 1 0;
+}
+
+#theme-list,
+#provider-list,
+#model-list,
+#voice-prov-list,
+#voice-list,
+#voice-model-list,
+#voice-rate-list,
+#feeds-list {
+    height: 8;
+    border: solid $panel;
+    margin-bottom: 1;
+}
+
+#settings-footer,
+#ai-setup-footer {
+    height: 3;
+    align: right middle;
+}
+
+#ai-result-box {
+    width: 100%;
+    max-width: 72;
+    height: 28;
+}
+
+#ai-meta {
+    color: $text-muted;
+    margin-bottom: 1;
+}
+
+#ai-spinner {
+    height: 1;
+    margin-bottom: 1;
+}
+
+#ai-scroll {
+    height: 1fr;
+}
+
+#trending-box {
+    width: 100%;
+    max-width: 64;
+    height: 32;
+}
+
+#trending-scroll {
+    height: 1fr;
+    margin: 1 0;
+}
+
+#trending-list {
+    width: 100%;
+    height: auto;
+    color: $foreground;
+}
+
+#add-feed-box {
+    width: 100%;
+    max-width: 64;
+    height: auto;
+}
+
+#manage-feeds-box {
+    width: 100%;
+    max-width: 72;
+    height: 28;
+}
+
+#feeds-list {
+    height: 1fr;
+    margin: 1 0;
+}
+
+#feeds-summary {
+    color: $text-muted;
+    margin-bottom: 1;
+}
+
+#feed-status {
+    margin: 1 0;
+    color: $text-muted;
+}
+
+Button {
+    border: solid $panel;
+}
+
+Button:focus {
+    border: solid $accent;
+}
+
+Input {
+    border: solid $panel;
+}
+
+Input:focus {
+    border: solid $accent;
+}
+
+OptionList {
+    background: $background;
+}
+
+OptionList > .option-list--option-highlighted {
+    background: $panel;
+    color: $primary;
+}

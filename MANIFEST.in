@@ -1,0 +1,7 @@
+include LICENSE README.md PUBLISH.md pyproject.toml
+recursive-include worldnews *.py *.tcss *.md
+prune tests
+prune graphify-out
+prune .cursor
+prune .venv
+global-exclude *.py[cod] __pycache__ *.so .DS_Store

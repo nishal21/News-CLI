@@ -1,0 +1,84 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "worldnews-cli"
+version = "0.4.2"
+description = "Full-screen Textual TUI news reader with RSS, themes, AI summarize, and TTS"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+authors = [
+    {name = "World News CLI Contributors"}
+]
+keywords = [
+    "news",
+    "cli",
+    "terminal",
+    "tui",
+    "textual",
+    "rss",
+    "reader",
+    "tts",
+    "ai",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content :: News/Diary",
+    "Topic :: Terminals",
+]
+dependencies = [
+    "cloudscraper>=1.2.71",
+    "feedparser>=6.0.10",
+    "beautifulsoup4>=4.12.0",
+    "lxml>=4.9.0",
+    "Pillow>=10.0.0",
+    "textual>=1.0.0",
+    "rich>=13.0.0",
+    "edge-tts>=6.1.0",
+    "websockets>=12.0",
+    "trafilatura>=1.12.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "build",
+    "twine",
+    "pytest>=7.0",
+]
+pdf = [
+    "reportlab",
+]
+voice = [
+    "gTTS>=2.5.0",
+    "pyttsx3>=2.90",
+    "websockets>=12.0",
+    "miniaudio>=1.59",
+]
+
+[project.urls]
+Homepage = "https://pypi.org/project/worldnews-cli/"
+# After you create the GitHub repo, set these to your real URLs:
+# Repository = "https://github.com/YOUR_USER/news-cli"
+# Issues = "https://github.com/YOUR_USER/news-cli/issues"
+Documentation = "https://pypi.org/project/worldnews-cli/"
+
+[project.scripts]
+worldnews = "worldnews.cli:main_entry"
+news = "worldnews.cli:main_entry"
+
+[tool.setuptools.packages.find]
+include = ["worldnews*"]
+
+[tool.setuptools.package-data]
+worldnews = ["styles/*.tcss", "*.md"]
