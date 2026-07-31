@@ -1,12 +1,12 @@
 # World News CLI
 
-[![PyPI](https://img.shields.io/pypi/v/worldnews-cli.svg)](https://pypi.org/project/worldnews-cli/0.4.2/)
-[![Python](https://img.shields.io/pypi/pyversions/worldnews-cli.svg)](https://pypi.org/project/worldnews-cli/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[PyPI](https://pypi.org/project/worldnews-cli/0.4.3/)
+[Python](https://pypi.org/project/worldnews-cli/)
+[License: MIT](LICENSE)
 
 Full-screen terminal news reader built with [Textual](https://textual.textualize.io/). Sidebar, headlines, article pane, themes, AI summarize/explain, and text-to-speech that can highlight the sentence being read.
 
-**Live on PyPI:** [worldnews-cli 0.4.2](https://pypi.org/project/worldnews-cli/0.4.2/)
+**Live on PyPI:** [worldnews-cli](https://pypi.org/project/worldnews-cli/0.4.3/)
 
 Requires Python 3.9+.
 
@@ -142,11 +142,13 @@ Provider docs: [Fish](https://docs.fish.audio/) · [Gemini speech](https://ai.go
 
 Cell-grid terminals (including Windows Terminal) often **cannot shape** Indic scripts the way a browser does. World News keeps the TUI usable with a safe default:
 
-| Mode | How to enable | Behavior |
-| ---- | ------------- | -------- |
+
+| Mode               | How to enable                        | Behavior                                                                   |
+| ------------------ | ------------------------------------ | -------------------------------------------------------------------------- |
 | **safe** (default) | Settings → App → Scripts, or no flag | No Indic/Arabic glyphs in the TUI (list + reader); press **o** for browser |
-| **plain** | `--plain` / `--ascii` | Same as safe for hostile scripts |
-| **native** | `--native-titles` | Show native script in list/reader (may still overlap on Windows Terminal) |
+| **plain**          | `--plain` / `--ascii`                | Same as safe for hostile scripts                                           |
+| **native**         | `--native-titles`                    | Show native script in list/reader (may still overlap on Windows Terminal)  |
+
 
 **Fonts / hosts**
 
