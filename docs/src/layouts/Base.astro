@@ -1,0 +1,128 @@
+---
+import "../styles/global.css";
+import { faqs } from "../data/faqs";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const base = import.meta.env.BASE_URL;
+const siteUrl = "https://nishal21.github.io/News-CLI/";
+const {
+  title = "World News CLI — terminal news reader for Python",
+  description =
+    "World News CLI is a full-screen terminal news app. Install with pip, browse categories, speak articles aloud, and summarize with AI. Free and open source on PyPI.",
+} = Astro.props;
+
+const canonical = siteUrl;
+const ogImage = new URL("og.jpg", siteUrl).href;
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${siteUrl}#website`,
+      url: siteUrl,
+      name: "World News CLI",
+      description,
+      inLanguage: "en",
+      publisher: { "@id": `${siteUrl}#person` },
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": `${siteUrl}#app`,
+      name: "World News CLI",
+      alternateName: ["worldnews-cli", "worldnews", "news"],
+      applicationCategory: "NewsApplication",
+      operatingSystem: "Windows, macOS, Linux",
+      softwareVersion: "0.4.3",
+      url: siteUrl,
+      downloadUrl: "https://pypi.org/project/worldnews-cli/",
+      installUrl: "https://pypi.org/project/worldnews-cli/",
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+      },
+      author: { "@id": `${siteUrl}#person` },
+      sameAs: [
+        "https://pypi.org/project/worldnews-cli/",
+        "https://github.com/nishal21/News-CLI",
+        "https://nishal.dev",
+      ],
+      description,
+    },
+    {
+      "@type": "Person",
+      "@id": `${siteUrl}#person`,
+      name: "Nishal K",
+      url: "https://nishal.dev",
+      sameAs: ["https://github.com/nishal21", "https://nishal.dev"],
+    },
+    {
+      "@type": "FAQPage",
+      "@id": `${siteUrl}#faq`,
+      mainEntity: faqs.map((item) => ({
+        "@type": "Question",
+        name: item.q,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: item.a,
+        },
+      })),
+    },
+  ],
+};
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta
+      name="keywords"
+      content="World News CLI, worldnews-cli, terminal news reader, Textual, Python news TUI, pip install worldnews-cli, py -m worldnews"
+    />
+    <meta name="author" content="Nishal K" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#1c1a17" />
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" type="text/plain" title="llms.txt" href={`${base}llms.txt`} />
+
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="World News CLI" />
+    <meta property="og:locale" content="en_US" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap"
+      rel="stylesheet"
+    />
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <div class="site">
+      <slot />
+    </div>
+  </body>
+</html>

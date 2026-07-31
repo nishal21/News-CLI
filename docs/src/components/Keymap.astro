@@ -1,0 +1,62 @@
+---
+const keys = [
+  { key: "j / k", action: "Move in the list" },
+  { key: "Enter", action: "Open article" },
+  { key: "a / e", action: "AI summarize / explain" },
+  { key: "t", action: "Speak (again to stop)" },
+  { key: "/", action: "Filter headlines" },
+  { key: "b", action: "Bookmark" },
+  { key: "o", action: "Open in browser" },
+  { key: "s", action: "Settings" },
+  { key: "1–9", action: "Jump category" },
+  { key: "?", action: "Help" },
+];
+---
+
+<section class="section keys" id="keys">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <p class="eyebrow">Keys</p>
+      <h2>Home-row controls</h2>
+      <p>A few bindings cover most of the day.</p>
+    </div>
+    <div class="key-grid reveal">
+      {
+        keys.map((k) => (
+          <div class="key-row">
+            <span class="kbd">{k.key}</span>
+            <span class="key-action">{k.action}</span>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .key-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    border-top: 1px solid var(--rule);
+  }
+
+  @media (min-width: 720px) {
+    .key-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .key-row {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--rule);
+    padding-right: 1rem;
+  }
+
+  .key-action {
+    color: var(--ink-soft);
+  }
+</style>

@@ -1,12 +1,13 @@
 # World News CLI
 
+[Website](https://nishal21.github.io/News-CLI/)
 [PyPI](https://pypi.org/project/worldnews-cli/0.4.3/)
 [Python](https://pypi.org/project/worldnews-cli/)
 [License: MIT](LICENSE)
 
 Full-screen terminal news reader built with [Textual](https://textual.textualize.io/). Sidebar, headlines, article pane, themes, AI summarize/explain, and text-to-speech that can highlight the sentence being read.
 
-**Live on PyPI:** [worldnews-cli](https://pypi.org/project/worldnews-cli/0.4.3/)
+**Website:** [nishal21.github.io/News-CLI](https://nishal21.github.io/News-CLI/) · **Author:** [nishal.dev](https://nishal.dev) · **PyPI:** [worldnews-cli](https://pypi.org/project/worldnews-cli/0.4.3/)
 
 Requires Python 3.9+.
 
@@ -25,6 +26,17 @@ pipx install worldnews-cli
 # or
 uv tool install worldnews-cli
 ```
+
+### Python / pip not on PATH (Windows)
+
+If you see `python is not recognized` or `pip is not recognized`:
+
+```bash
+py -m pip install worldnews-cli
+py -m worldnews
+```
+
+Or reinstall Python from [python.org](https://www.python.org/downloads/) and enable **Add python.exe to PATH**.
 
 Optional extras for offline/gTTS playback helpers:
 
@@ -193,6 +205,17 @@ git clone <your-repo-url>
 cd news-cli
 pip install -e ".[dev,voice]"
 python -m worldnews
+```
+
+
+
+### Website (Astro)
+
+```bash
+cd docs
+npm install
+npm run dev
+npm run build
 ```
 
 

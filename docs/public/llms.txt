@@ -1,0 +1,57 @@
+# World News CLI
+
+> Full-screen terminal news reader for Python (Textual TUI). Package: worldnews-cli on PyPI.
+
+## Summary
+
+World News CLI lets you read news in the terminal: category feeds, headline list, article pane, bookmarks, optional AI summarize/explain, and text-to-speech. Requires Python 3.9+.
+
+## Install
+
+```bash
+pip install worldnews-cli
+worldnews
+```
+
+Windows (Python not on PATH):
+
+```bash
+py -m pip install worldnews-cli
+py -m worldnews
+```
+
+Fallback if `worldnews` is missing from PATH:
+
+```bash
+python -m worldnews
+# or
+py -m worldnews
+```
+
+## Mobile (Android / Termux)
+
+```bash
+pkg update && pkg install python libxml2 libxslt libjpeg-turbo
+pip install worldnews-cli
+python -m worldnews
+```
+
+Limitations: terminal UI (not a native app), narrow width uses list-or-reader, complex scripts need fonts / safe mode + browser (`o`) or speak (`t`). No App Store build; iOS is a-Shell/iSH or SSH.
+
+## Links
+
+- Website: https://nishal21.github.io/News-CLI/
+- PyPI: https://pypi.org/project/worldnews-cli/
+- Source: https://github.com/nishal21/News-CLI
+- Author: https://nishal.dev
+
+## Common questions
+
+### What is World News CLI?
+A terminal news reader (TUI) with feeds, headlines, and a reader pane. Speak articles with `t`. Summarize with `a`.
+
+### How do I fix "python is not recognized"?
+On Windows use `py -m pip` and `py -m worldnews`, or reinstall Python with "Add to PATH" enabled.
+
+### Do I need an API key?
+No for reading news. AI has a free no-key path. Extra voice/AI providers are optional.

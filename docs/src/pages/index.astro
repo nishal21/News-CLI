@@ -1,0 +1,81 @@
+---
+import Base from "../layouts/Base.astro";
+import Hero from "../components/Hero.astro";
+import Install from "../components/Install.astro";
+import Mobile from "../components/Mobile.astro";
+import Features from "../components/Features.astro";
+import Keymap from "../components/Keymap.astro";
+import TuiMock from "../components/TuiMock.astro";
+import Faq from "../components/Faq.astro";
+import Footer from "../components/Footer.astro";
+---
+
+<Base>
+  <aside class="ambient" id="ambient-ticker" aria-hidden="true"></aside>
+  <main id="main">
+    <Hero />
+    <Install />
+    <Mobile />
+    <Features />
+    <TuiMock />
+    <Keymap />
+    <Faq />
+  </main>
+  <Footer />
+</Base>
+
+<style>
+  .ambient {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 2.75rem;
+    height: 100vh;
+    overflow: hidden;
+    z-index: 3;
+    pointer-events: none;
+    border-left: 1px solid var(--rule);
+    background: oklch(96% 0.006 95 / 0.55);
+    display: none;
+  }
+
+  @media (min-width: 1100px) {
+    .ambient {
+      display: block;
+    }
+    main,
+    :global(footer),
+    :global(.hero-rail),
+    :global(.section .wrap) {
+      /* leave room for ticker rail */
+    }
+  }
+
+  :global(.ticker-track) {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+    padding: 1.5rem 0.35rem;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.22em;
+    writing-mode: horizontal-tb;
+    text-orientation: mixed;
+    color: var(--mute);
+  }
+
+  :global(.ticker-track span) {
+    display: block;
+    transform: rotate(180deg);
+    writing-mode: vertical-rl;
+    text-align: center;
+  }
+</style>
+
+<script>
+  import { mountAmbientTicker, mountScrollReveals } from "../components/siteMotion";
+
+  const host = document.getElementById("ambient-ticker");
+  if (host) mountAmbientTicker(host);
+  mountScrollReveals();
+</script>

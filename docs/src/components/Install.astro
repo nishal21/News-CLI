@@ -1,0 +1,205 @@
+---
+const cmds = [
+  { label: "pip", code: "pip install worldnews-cli" },
+  { label: "pipx", code: "pipx install worldnews-cli" },
+  { label: "uv", code: "uv tool install worldnews-cli" },
+  { label: "run", code: "worldnews" },
+  { label: "module", code: "python -m worldnews" },
+  { label: "win py", code: "py -m pip install worldnews-cli" },
+  { label: "win run", code: "py -m worldnews" },
+];
+
+const extras = [
+  { label: "voice", code: 'pip install "worldnews-cli[voice]"' },
+  { label: "tech", code: "worldnews --category tech" },
+  { label: "offline", code: "worldnews --offline" },
+  { label: "version", code: "worldnews --version" },
+];
+---
+
+<section class="section install" id="install">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <p class="eyebrow">Install</p>
+      <h2>Get it running</h2>
+      <p>
+        Needs Python 3.9+. Install the package, then start the app with
+        <code>worldnews</code> or <code>news</code>.
+      </p>
+    </div>
+
+    <ul class="cmd-list">
+      {
+        cmds.map((c) => (
+          <li class="cmd-row reveal">
+            <span class="cmd-label mono">{c.label}</span>
+            <code class="cmd-code">{c.code}</code>
+            <button
+              type="button"
+              class="cmd-copy"
+              data-copy={c.code}
+              aria-label={`Copy ${c.label} command`}>Copy</button
+            >
+          </li>
+        ))
+      }
+    </ul>
+
+    <div class="fix reveal" id="path-fix">
+      <h3>Python or pip not on PATH?</h3>
+      <p>
+        On Windows, <code>python</code> and <code>pip</code> often fail with "not recognized" even
+        after install. Use the launcher instead:
+      </p>
+      <ol>
+        <li>
+          Install: <code>py -m pip install worldnews-cli</code>
+        </li>
+        <li>
+          Run: <code>py -m worldnews</code>
+        </li>
+      </ol>
+      <p>
+        If <code>python</code> works but <code>worldnews</code> does not, Scripts is probably off
+        PATH. Use <code>python -m worldnews</code> (same idea on macOS/Linux).
+      </p>
+      <p>
+        Permanent fix on Windows: reinstall from
+        <a href="https://www.python.org/downloads/" rel="noopener noreferrer" target="_blank"
+          >python.org</a
+        >
+        and check <strong>Add python.exe to PATH</strong>, or add your Python
+        <code>Scripts</code> folder to the user PATH in Environment Variables.
+      </p>
+    </div>
+
+    <ul class="cmd-list cmd-list--extra">
+      {
+        extras.map((c) => (
+          <li class="cmd-row reveal">
+            <span class="cmd-label mono">{c.label}</span>
+            <code class="cmd-code">{c.code}</code>
+            <button
+              type="button"
+              class="cmd-copy"
+              data-copy={c.code}
+              aria-label={`Copy ${c.label} command`}>Copy</button
+            >
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+<style>
+  .cmd-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--rule);
+  }
+
+  .cmd-list--extra {
+    margin-top: var(--space-md);
+  }
+
+  .cmd-row {
+    display: grid;
+    grid-template-columns: 5rem 1fr auto;
+    gap: 1rem;
+    align-items: center;
+    padding: 1.1rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .cmd-label {
+    color: var(--mute);
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .cmd-code {
+    font-family: var(--font-mono);
+    font-size: clamp(0.8rem, 1.4vw, 0.98rem);
+    background: transparent;
+    word-break: break-all;
+  }
+
+  .cmd-copy {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid var(--rule);
+    background: transparent;
+    color: var(--ink);
+    padding: 0.45rem 0.7rem;
+    cursor: pointer;
+  }
+
+  .cmd-copy:hover,
+  .cmd-copy.is-copied {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+
+  .fix {
+    margin-top: var(--space-lg);
+    padding: var(--space-md) 0;
+    border-top: 1px solid var(--rule);
+    max-width: 40rem;
+  }
+
+  .fix h3 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    margin: 0 0 0.75rem;
+  }
+
+  .fix p,
+  .fix li {
+    color: var(--ink-soft);
+  }
+
+  .fix ol {
+    margin: 0.75rem 0 1rem;
+    padding-left: 1.25rem;
+  }
+
+  .fix a {
+    text-decoration: underline;
+  }
+
+  @media (max-width: 640px) {
+    .cmd-row {
+      grid-template-columns: 1fr auto;
+      grid-template-rows: auto auto;
+    }
+    .cmd-label {
+      grid-column: 1 / -1;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>("[data-copy]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const text = btn.dataset.copy || "";
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.classList.add("is-copied");
+        btn.textContent = "Copied";
+        window.setTimeout(() => {
+          btn.classList.remove("is-copied");
+          btn.textContent = "Copy";
+        }, 1600);
+      } catch {
+        btn.textContent = "Fail";
+      }
+    });
+  });
+</script>

@@ -1,0 +1,77 @@
+---
+const year = new Date().getFullYear();
+---
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <p class="footer-brand">WORLD NEWS</p>
+    <nav class="footer-nav" aria-label="Footer">
+      <a href="https://nishal.dev" rel="noopener noreferrer" target="_blank">nishal.dev</a>
+      <a href="https://pypi.org/project/worldnews-cli/" rel="noopener noreferrer" target="_blank"
+        >PyPI</a
+      >
+      <a href="https://github.com/nishal21/News-CLI" rel="noopener noreferrer" target="_blank"
+        >GitHub</a
+      >
+      <a
+        href="https://github.com/nishal21/News-CLI/blob/master/LICENSE"
+        rel="noopener noreferrer"
+        target="_blank">MIT</a
+      >
+      <a href="#mobile">Mobile</a>
+      <a href="#faq">FAQ</a>
+      <a href="#top">Top</a>
+    </nav>
+    <p class="footer-copy mono">
+      © {year} nishal21 · <a href="https://nishal.dev">nishal.dev</a> · worldnews-cli on PyPI
+    </p>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    border-top: 1px solid var(--rule);
+    padding-block: var(--space-lg);
+    margin-top: var(--space-md);
+  }
+
+  .footer-inner {
+    display: grid;
+    gap: var(--space-sm);
+  }
+
+  .footer-brand {
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    margin: 0;
+    letter-spacing: -0.02em;
+  }
+
+  .footer-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+  }
+
+  .footer-nav a {
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+  }
+
+  .footer-nav a:hover {
+    border-bottom-color: var(--ink);
+  }
+
+  .footer-copy {
+    margin: var(--space-sm) 0 0;
+    color: var(--mute);
+    font-size: 0.75rem;
+  }
+
+  .footer-copy a {
+    color: inherit;
+  }
+</style>

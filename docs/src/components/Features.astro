@@ -1,0 +1,99 @@
+---
+const features = [
+  {
+    n: "01",
+    title: "Three panes, one keyboard",
+    body: "Feeds on the left, headlines in the middle, article on the right. Themes range from Newsroom to High Contrast.",
+  },
+  {
+    n: "02",
+    title: "Hear the piece",
+    body: "Press t to speak the article. Edge TTS is free by default. Fish Audio, Gemini, and Groq are optional.",
+  },
+  {
+    n: "03",
+    title: "AI when you ask",
+    body: "Summarize or explain from the action row. The free OpenCode Zen path needs no API key.",
+  },
+  {
+    n: "04",
+    title: "Your own feeds",
+    body: "Built-in categories (Tech, Anime, AI, and more) plus My Feeds. Paste a site or RSS URL and discovery fills the rest when it can.",
+  },
+];
+---
+
+<section class="section features" id="features">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <p class="eyebrow">Features</p>
+      <h2>Made for reading in a terminal</h2>
+      <p>
+        Keyboard first. Offline cache. Infinite headline pages. Works on wide desktops and
+        phone-width terminals.
+      </p>
+    </div>
+    <ol class="feat-list">
+      {
+        features.map((f) => (
+          <li class="feat reveal">
+            <span class="feat-n mono">{f.n}</span>
+            <div>
+              <h3>{f.title}</h3>
+              <p>{f.body}</p>
+            </div>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</section>
+
+<style>
+  .feat-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0;
+  }
+
+  .feat {
+    display: grid;
+    grid-template-columns: 4rem 1fr;
+    gap: var(--space-md);
+    padding: var(--space-md) 0;
+    border-top: 1px solid var(--rule);
+  }
+
+  .feat:last-child {
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .feat-n {
+    color: var(--mid);
+    font-size: 0.85rem;
+    padding-top: 0.35rem;
+  }
+
+  .feat h3 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    margin: 0 0 0.4rem;
+    letter-spacing: -0.02em;
+  }
+
+  .feat p {
+    margin: 0;
+    max-width: 36rem;
+    color: var(--mute);
+  }
+
+  @media (min-width: 900px) {
+    .feat-list {
+      grid-template-columns: 1fr 1fr;
+      column-gap: var(--space-lg);
+    }
+  }
+</style>

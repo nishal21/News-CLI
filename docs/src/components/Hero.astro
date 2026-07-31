@@ -1,0 +1,141 @@
+---
+---
+
+<header class="hero" id="top">
+  <div class="hero-rail wrap">
+    <p class="eyebrow hero-meta">terminal newsroom · v0.4.3 · MIT · by nishal.dev</p>
+    <h1 class="hero-brand" aria-label="World News">
+      <span class="hero-brand-text">WORLD NEWS</span><span class="hero-cursor" aria-hidden="true"
+        >▌</span
+      >
+    </h1>
+    <p class="hero-answer" id="what-is">
+      World News CLI is a full-screen terminal news reader for Python. Pick a category, skim
+      headlines, open the story, speak it aloud, or summarize with AI when you want help.
+    </p>
+    <p class="hero-line">
+      Free on PyPI as <code>worldnews-cli</code>. Runs in Windows Terminal, macOS, and Linux.
+    </p>
+    <div class="hero-ctas">
+      <a class="btn" href="#install">Install</a>
+      <a class="btn btn--ghost" href="#mobile">Mobile</a>
+      <a class="btn btn--ghost" href="#path-fix">PATH fix</a>
+      <a
+        class="btn btn--ghost"
+        href="https://github.com/nishal21/News-CLI"
+        rel="noopener noreferrer"
+        target="_blank">GitHub</a
+      >
+      <a
+        class="btn btn--ghost"
+        href="https://nishal.dev"
+        rel="noopener noreferrer"
+        target="_blank">nishal.dev</a
+      >
+    </div>
+    <p class="hero-cmd mono">
+      <span class="prompt">$</span> pip install worldnews-cli &amp;&amp; worldnews
+    </p>
+  </div>
+  <div class="hero-wash" aria-hidden="true"></div>
+</header>
+
+<style>
+  .hero {
+    position: relative;
+    min-height: 100svh;
+    display: flex;
+    align-items: flex-end;
+    padding-block: var(--space-xl) var(--space-lg);
+    overflow: hidden;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .hero-rail {
+    position: relative;
+    z-index: 2;
+    width: min(100% - 2.5rem, var(--max));
+    padding-bottom: var(--space-md);
+  }
+
+  .hero-meta {
+    margin: 0 0 var(--space-md);
+  }
+
+  .hero-brand {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(3.8rem, 14vw, 9.5rem);
+    line-height: 0.88;
+    letter-spacing: -0.03em;
+    max-width: 12ch;
+  }
+
+  .hero-cursor {
+    display: inline-block;
+    margin-left: 0.08em;
+    font-size: 0.55em;
+    vertical-align: 0.12em;
+    animation: blink 1.05s step-end infinite;
+  }
+
+  @keyframes blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  .hero-answer {
+    margin: var(--space-md) 0 0;
+    max-width: 38rem;
+    font-size: clamp(1.15rem, 2vw, 1.35rem);
+    color: var(--ink);
+  }
+
+  .hero-line {
+    margin: 0.75rem 0 0;
+    max-width: 34rem;
+    font-size: 1.05rem;
+    color: var(--mute);
+  }
+
+  .hero-ctas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: var(--space-md);
+  }
+
+  .hero-cmd {
+    margin-top: var(--space-md);
+    color: var(--mute);
+    font-size: 0.85rem;
+  }
+
+  .prompt {
+    color: var(--ink);
+    margin-right: 0.35rem;
+  }
+
+  .hero-wash {
+    position: absolute;
+    inset: auto 0 0;
+    height: 45%;
+    background: linear-gradient(to top, var(--paper), transparent);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  @media (max-width: 640px) {
+    .hero {
+      align-items: center;
+      min-height: 92svh;
+    }
+  }
+</style>
+
+<script>
+  import { bootHero } from "./heroMotion";
+  bootHero();
+</script>

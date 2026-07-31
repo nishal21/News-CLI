@@ -1,0 +1,243 @@
+---
+const feeds = ["All", "Anime", "Marvel", "Tech", "AI", "Sports"];
+const headlines = [
+  { mark: "+", sent: "→", title: "Studio announces fall anime slate", src: "ANN", when: "31 Jul" },
+  { mark: "+", sent: "↑", title: "Open models climb the leaderboard", src: "Verge", when: "31 Jul" },
+  { mark: "o", sent: "→", title: "MCU phase rumors, carefully filtered", src: "CBR", when: "30 Jul" },
+  { mark: "+", sent: "↓", title: "Match report: late equalizer", src: "ESPN", when: "30 Jul" },
+  { mark: "+", sent: "→", title: "My Feeds: three custom RSS online", src: "Local", when: "29 Jul" },
+];
+---
+
+<section class="section tui" id="demo">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <p class="eyebrow">Inside the TUI</p>
+      <h2>Feeds, list, reader</h2>
+      <p>The mock below cycles stories the way the live app feels.</p>
+    </div>
+
+    <div class="tui-shell reveal" id="tui-mock" data-tui>
+      <div class="tui-chrome mono">
+        <span>worldnews</span>
+        <span class="tui-chrome-mid">v0.4.3 · ready</span>
+        <span>j/k · enter · t speak</span>
+      </div>
+      <div class="tui-panes">
+        <aside class="tui-feeds" aria-hidden="true">
+          <p class="tui-pane-label">FEEDS</p>
+          <ul>
+            {
+              feeds.map((f, i) => (
+                <li class:list={[{ "is-active": i === 1 }]} data-feed>
+                  {i === 1 ? "▸ " : "  "}
+                  {f}
+                </li>
+              ))
+            }
+          </ul>
+        </aside>
+        <div class="tui-list" aria-hidden="true">
+          <p class="tui-pane-label">HEADLINES</p>
+          <ul id="tui-headlines">
+            {
+              headlines.map((h, i) => (
+                <li class:list={[{ "is-hi": i === 0 }]} data-row>
+                  <span class="tui-mark">{h.mark}</span>
+                  <span class="tui-sent">{h.sent}</span>
+                  <span class="tui-title">{h.title}</span>
+                  <span class="tui-src">{h.src}</span>
+                  <span class="tui-when">{h.when}</span>
+                </li>
+              ))
+            }
+          </ul>
+        </div>
+        <article class="tui-reader" aria-hidden="true">
+          <p class="tui-pane-label">ARTICLE</p>
+          <h3 id="tui-reader-title">Studio announces fall anime slate</h3>
+          <p class="tui-reader-meta mono" id="tui-reader-meta">ANN · English · 2m read</p>
+          <div class="tui-reader-body" id="tui-reader-body">
+            <p>
+              Production committees confirmed a stacked fall season. Trailers, key visuals, and cast
+              notes land in your list as they publish — full story bodies when the feed carries them.
+            </p>
+          </div>
+          <div class="tui-actions mono">
+            <span>Summarize</span><span>Explain</span><span>Speak</span><span>Save</span><span>Open</span>
+          </div>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .tui-shell {
+    border: 1px solid var(--ink);
+    background: var(--ink);
+    color: var(--paper);
+    box-shadow: 12px 12px 0 oklch(70% 0.01 95);
+  }
+
+  .tui-chrome {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 0.55rem 0.85rem;
+    border-bottom: 1px solid oklch(30% 0.01 95);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: oklch(72% 0.01 95);
+  }
+
+  .tui-chrome-mid {
+    color: oklch(88% 0.005 95);
+  }
+
+  .tui-panes {
+    display: grid;
+    grid-template-columns: 8.5rem 1.1fr 1fr;
+    min-height: 22rem;
+  }
+
+  .tui-feeds,
+  .tui-list,
+  .tui-reader {
+    padding: 0.75rem;
+    min-width: 0;
+  }
+
+  .tui-feeds {
+    border-right: 1px solid oklch(30% 0.01 95);
+  }
+
+  .tui-list {
+    border-right: 1px solid oklch(30% 0.01 95);
+  }
+
+  .tui-pane-label {
+    margin: 0 0 0.65rem;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.16em;
+    color: oklch(58% 0.01 95);
+  }
+
+  .tui-feeds ul,
+  .tui-list ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+  }
+
+  .tui-feeds li {
+    padding: 0.28rem 0.2rem;
+    color: oklch(70% 0.01 95);
+  }
+
+  .tui-feeds li.is-active {
+    background: oklch(28% 0.012 95);
+    color: var(--paper);
+  }
+
+  .tui-list li {
+    display: grid;
+    grid-template-columns: 0.9rem 0.9rem 1fr auto auto;
+    gap: 0.35rem;
+    align-items: baseline;
+    padding: 0.35rem 0.25rem;
+    color: oklch(78% 0.008 95);
+  }
+
+  .tui-list li.is-hi {
+    background: oklch(92% 0.006 95);
+    color: var(--ink);
+  }
+
+  .tui-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tui-src,
+  .tui-when {
+    color: inherit;
+    opacity: 0.65;
+    font-size: 0.7rem;
+  }
+
+  .tui-list li.is-hi .tui-src,
+  .tui-list li.is-hi .tui-when {
+    opacity: 0.55;
+  }
+
+  .tui-reader h3 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 1.35rem;
+    margin: 0 0 0.4rem;
+    letter-spacing: -0.02em;
+    color: var(--paper);
+  }
+
+  .tui-reader-meta {
+    margin: 0 0 0.85rem;
+    font-size: 0.68rem;
+    color: oklch(65% 0.01 95);
+  }
+
+  .tui-reader-body {
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: oklch(86% 0.006 95);
+    max-height: 10rem;
+    overflow: hidden;
+  }
+
+  .tui-reader-body p {
+    margin: 0;
+  }
+
+  .tui-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid oklch(30% 0.01 95);
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: oklch(62% 0.01 95);
+  }
+
+  @media (max-width: 900px) {
+    .tui-panes {
+      grid-template-columns: 1fr;
+    }
+    .tui-feeds,
+    .tui-list {
+      border-right: 0;
+      border-bottom: 1px solid oklch(30% 0.01 95);
+    }
+    .tui-feeds ul {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    .tui-shell {
+      box-shadow: 6px 6px 0 oklch(70% 0.01 95);
+    }
+  }
+</style>
+
+<script>
+  import { startTuiMock } from "./tuiMotion";
+  startTuiMock();
+</script>

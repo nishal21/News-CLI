@@ -1,0 +1,6 @@
+
+# ── Astro site (docs/) ──────────────────────────────────
+docs/node_modules/
+docs/dist/
+docs/.astro/
+

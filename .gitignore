@@ -147,3 +147,7 @@ learning-journal.md
 worldnews.cmd
 help
 PUBLISH.md
+# Astro site (docs/)
+docs/node_modules/
+docs/dist/
+docs/.astro/

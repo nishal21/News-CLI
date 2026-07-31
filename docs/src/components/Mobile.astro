@@ -1,0 +1,266 @@
+---
+const termuxSteps = [
+  {
+    label: "deps",
+    code: "pkg update && pkg install python libxml2 libxslt libjpeg-turbo",
+  },
+  { label: "pip", code: "pip install worldnews-cli" },
+  { label: "voice", code: 'pip install "worldnews-cli[voice]"' },
+  { label: "extras", code: "pkg install termux-api ffmpeg" },
+  { label: "run", code: "python -m worldnews" },
+];
+
+const widths = [
+  { cols: "100+", layout: "Sidebar + list + reader" },
+  { cols: "84-99", layout: "List first; Enter opens the reader" },
+  { cols: "under 84", layout: "Single column; Enter = reader, Esc = list" },
+  { cols: "under 56", layout: "Compact rows and short key hints" },
+];
+---
+
+<section class="section mobile" id="mobile">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <p class="eyebrow">Mobile</p>
+      <h2>Phones and small screens</h2>
+      <p>
+        This is a terminal app, not a store app. On Android it usually runs inside Termux. On a
+        narrow screen the layout collapses to list-or-reader instead of three panes.
+      </p>
+    </div>
+
+    <div class="mobile-block reveal">
+      <h3>Android (Termux)</h3>
+      <ol class="mobile-steps">
+        <li>Install <a href="https://termux.dev/" rel="noopener noreferrer" target="_blank">Termux</a> from its official site or F-Droid (not a random Play Store clone).</li>
+        <li>Open Termux and run the commands below.</li>
+        <li>Prefer <code>python -m worldnews</code> if <code>worldnews</code> is missing from PATH.</li>
+      </ol>
+      <ul class="cmd-list">
+        {
+          termuxSteps.map((c) => (
+            <li class="cmd-row">
+              <span class="cmd-label mono">{c.label}</span>
+              <code class="cmd-code">{c.code}</code>
+              <button
+                type="button"
+                class="cmd-copy"
+                data-copy={c.code}
+                aria-label={`Copy ${c.label} command`}>Copy</button
+              >
+            </li>
+          ))
+        }
+      </ul>
+      <p class="mobile-note">
+        <code>termux-api</code> helps open links in the system browser. <code>ffmpeg</code> helps some
+        voice playback paths.
+      </p>
+    </div>
+
+    <div class="mobile-block reveal">
+      <h3>iOS and other options</h3>
+      <p>
+        There is no App Store build. On iOS, people sometimes use a-Shell or iSH with Python and pip,
+        but setup is fiddly and packages can fail. A steadier path is SSH (JuiceSSH, ConnectBot, or
+        similar) into a machine that already has <code>worldnews</code> installed.
+      </p>
+    </div>
+
+    <div class="mobile-block reveal" id="mobile-limits">
+      <h3>Limitations</h3>
+      <ul class="limit-list">
+        <li>
+          <strong>Not a native mobile UI.</strong> You are in a terminal. Touch works for taps, but
+          the app is keyboard-first.
+        </li>
+        <li>
+          <strong>Width changes the layout.</strong> Below about 84 columns you get one column at a
+          time. Enter opens the reader; Esc goes back to the list.
+        </li>
+        <li>
+          <strong>Complex scripts.</strong> Malayalam, Hindi, Arabic, and similar scripts often
+          overlap in cell-grid terminals. Default safe mode hides those glyphs in the TUI; press
+          <code>o</code> to read in a browser, or <code>t</code> to hear the story.
+        </li>
+        <li>
+          <strong>Fonts matter.</strong> In Termux, install a font that covers the languages you
+          care about (for example Noto). Without that, more characters look broken.
+        </li>
+        <li>
+          <strong>Install weight.</strong> You need Python plus native libs (<code>libxml2</code>,
+          <code>libxslt</code>, JPEG). First install can take a while on older phones.
+        </li>
+        <li>
+          <strong>Battery and data.</strong> Fetching feeds uses the network. Speak and AI features
+          add more work when you turn them on.
+        </li>
+      </ul>
+
+      <div class="width-table" role="table" aria-label="Terminal width layout">
+        <div class="width-row width-head" role="row">
+          <span role="columnheader">Columns</span>
+          <span role="columnheader">Layout</span>
+        </div>
+        {
+          widths.map((w) => (
+            <div class="width-row" role="row">
+              <span class="mono" role="cell">
+                {w.cols}
+              </span>
+              <span role="cell">{w.layout}</span>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .mobile-block {
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--rule);
+    max-width: 44rem;
+  }
+
+  .mobile-block h3 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    margin: 0 0 0.75rem;
+    letter-spacing: -0.02em;
+  }
+
+  .mobile-block p,
+  .mobile-steps li {
+    color: var(--ink-soft);
+  }
+
+  .mobile-steps {
+    margin: 0 0 1rem;
+    padding-left: 1.25rem;
+  }
+
+  .mobile-steps a {
+    text-decoration: underline;
+  }
+
+  .mobile-note {
+    margin-top: 0.85rem;
+    font-size: 0.92rem;
+    color: var(--mute);
+  }
+
+  .cmd-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--rule);
+  }
+
+  .cmd-row {
+    display: grid;
+    grid-template-columns: 5rem 1fr auto;
+    gap: 1rem;
+    align-items: center;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .cmd-label {
+    color: var(--mute);
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .cmd-code {
+    font-family: var(--font-mono);
+    font-size: clamp(0.75rem, 1.3vw, 0.92rem);
+    background: transparent;
+    word-break: break-all;
+  }
+
+  .cmd-copy {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid var(--rule);
+    background: transparent;
+    color: var(--ink);
+    padding: 0.45rem 0.7rem;
+    cursor: pointer;
+  }
+
+  .cmd-copy:hover,
+  .cmd-copy.is-copied {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+
+  .limit-list {
+    margin: 0 0 1.25rem;
+    padding-left: 1.15rem;
+    color: var(--ink-soft);
+  }
+
+  .limit-list li {
+    margin-bottom: 0.65rem;
+  }
+
+  .width-table {
+    border-top: 1px solid var(--rule);
+  }
+
+  .width-row {
+    display: grid;
+    grid-template-columns: 7rem 1fr;
+    gap: 1rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.95rem;
+  }
+
+  .width-head {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--mute);
+  }
+
+  @media (max-width: 640px) {
+    .cmd-row {
+      grid-template-columns: 1fr auto;
+    }
+    .cmd-label {
+      grid-column: 1 / -1;
+    }
+    .width-row {
+      grid-template-columns: 5.5rem 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>("#mobile [data-copy]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const text = btn.dataset.copy || "";
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.classList.add("is-copied");
+        btn.textContent = "Copied";
+        window.setTimeout(() => {
+          btn.classList.remove("is-copied");
+          btn.textContent = "Copy";
+        }, 1600);
+      } catch {
+        btn.textContent = "Fail";
+      }
+    });
+  });
+</script>

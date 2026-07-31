@@ -1,0 +1,167 @@
+---
+import { faqs, linkifyAnswer } from "../data/faqs";
+---
+
+<section class="section faq" id="faq" aria-labelledby="faq-heading">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <p class="eyebrow">FAQ</p>
+      <h2 id="faq-heading">Quick answers</h2>
+      <p>Straight replies for install, PATH issues, and what the app actually does.</p>
+    </div>
+    <div class="faq-list" data-faq-list>
+      {
+        faqs.map((item, i) => (
+          <div class="faq-item reveal">
+            <button
+              type="button"
+              class="faq-trigger"
+              id={`faq-btn-${i}`}
+              aria-expanded="false"
+              aria-controls={`faq-panel-${i}`}
+            >
+              <span class="faq-q">{item.q}</span>
+              <span class="faq-icon" aria-hidden="true">+</span>
+            </button>
+            <div
+              class="faq-panel"
+              id={`faq-panel-${i}`}
+              role="region"
+              aria-labelledby={`faq-btn-${i}`}
+              hidden
+            >
+              <div class="faq-panel-inner">
+                {
+                  item.links ? (
+                    <ul class="faq-links">
+                      {item.links.map((link) => (
+                        <li>
+                          <span class="faq-link-label">{link.label}</span>
+                          <a href={link.href} rel="noopener noreferrer" target="_blank">
+                            {link.href.replace(/^https?:\/\//, "")}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p class="faq-body" set:html={linkifyAnswer(item.a)} />
+                  )
+                }
+              </div>
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .faq-list {
+    border-top: 1px solid var(--rule);
+  }
+
+  .faq-item {
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .faq-trigger {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1.5rem;
+    gap: 1rem;
+    align-items: baseline;
+    padding: 1.1rem 0;
+    margin: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .faq-q {
+    font-family: var(--font-display);
+    font-size: clamp(1.25rem, 2.4vw, 1.65rem);
+    letter-spacing: -0.015em;
+    line-height: 1.25;
+  }
+
+  .faq-icon {
+    width: 1.5rem;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    color: var(--mute);
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .faq-item.is-open .faq-icon {
+    transform: rotate(45deg);
+  }
+
+  .faq-panel {
+    overflow: hidden;
+    height: 0;
+  }
+
+  .faq-panel-inner {
+    /* Match trigger grid: text column + icon gutter */
+    display: grid;
+    grid-template-columns: 1fr 1.5rem;
+    gap: 1rem;
+    padding: 0.15rem 0 1.35rem;
+  }
+
+  .faq-body,
+  .faq-links {
+    grid-column: 1;
+    margin: 0;
+    max-width: 40rem;
+    color: var(--ink-soft);
+    line-height: 1.55;
+  }
+
+  .faq-body :global(a),
+  .faq-links a {
+    color: var(--ink);
+    text-underline-offset: 0.15em;
+    word-break: break-all;
+  }
+
+  .faq-body :global(a:hover),
+  .faq-links a:hover {
+    text-decoration-thickness: 2px;
+  }
+
+  .faq-links {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    gap: 0.65rem;
+  }
+
+  .faq-links li {
+    display: grid;
+    gap: 0.15rem;
+  }
+
+  .faq-link-label {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--mute);
+  }
+
+  .faq-trigger:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 4px;
+  }
+</style>
+
+<script>
+  import { initFaqAccordion } from "./faqMotion";
+  initFaqAccordion();
+</script>
