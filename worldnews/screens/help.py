@@ -15,6 +15,13 @@ class HelpScreen(ModalScreen[None]):
     ]
 
     def compose(self) -> ComposeResult:
+        from worldnews.terminal_setup import configure_terminal, terminal_hint_label
+
+        try:
+            hint = terminal_hint_label(configure_terminal())
+        except Exception:
+            hint = "Use a UTF-8 terminal and a font that covers your script"
+
         with Vertical(id="help-box"):
             yield Label("Keyboard shortcuts", classes="modal-title")
             with VerticalScroll(id="help-scroll"):
@@ -40,6 +47,15 @@ class HelpScreen(ModalScreen[None]):
                     "  Lists load 50 at a time — scroll / j near bottom for +50\n"
                     "  +            manage My Feeds (add websites)\n"
                     "  My Feeds = your websites (any language — tagged)\n\n"
+                    "[b]Scripts & fonts[/]\n"
+                    f"  Terminal: {hint}\n"
+                    "  Windows: Windows Terminal + Nirmala UI / Noto Sans Malayalam\n"
+                    "  Termux: install Noto Malayalam font package\n"
+                    "  Linux/macOS: UTF-8 locale + Noto / Meera\n"
+                    "  Default: no Indic/Arabic glyphs in the TUI (avoids bleed)\n"
+                    "  Press t to hear the story · o for browser\n"
+                    "  Flags: --plain / --ascii · --native-titles\n"
+                    "  Settings → App → Scripts: safe · plain · native\n\n"
                     "[b]Phone / Termux[/]\n"
                     "  Narrow screens hide the feed rail — use [ ] or 1–9\n"
                     "  Enter opens full-width reader · Esc returns to list\n",

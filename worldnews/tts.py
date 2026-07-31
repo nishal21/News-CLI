@@ -316,12 +316,60 @@ def _ws_connect(uri: str, **kwargs):
     return websockets.connect(uri, **kwargs)
 
 
+# Edge neural voices for languages that break in the TUI (auto-picked on Speak).
+_EDGE_LANG_VOICES = {
+    "ML": "ml-IN-SobhanaNeural",
+    "HI": "hi-IN-SwaraNeural",
+    "TA": "ta-IN-PallaviNeural",
+    "TE": "te-IN-ShrutiNeural",
+    "KN": "kn-IN-SapnaNeural",
+    "BN": "bn-IN-TanishaaNeural",
+    "GU": "gu-IN-DhwaniNeural",
+    "MR": "mr-IN-AarohiNeural",
+    "PA": "pa-IN-VaaniNeural",
+    "OR": "or-IN-SubhasiniNeural",  # may 404 → fallback handled by synth
+    "SI": "si-LK-ThiliniNeural",
+    "AR": "ar-SA-ZariyahNeural",
+    "UR": "ur-PK-UzmaNeural",
+    "FA": "fa-IR-DilaraNeural",
+    "HE": "he-IL-HilaNeural",
+    "TH": "th-TH-PremwadeeNeural",
+    "MY": "my-MM-NilarNeural",
+    "KM": "km-KH-SreymomNeural",
+    "AM": "am-ET-MekdesNeural",
+    "JA": "ja-JP-NanamiNeural",
+    "KO": "ko-KR-SunHiNeural",
+    "ZH": "zh-CN-XiaoxiaoNeural",
+    "NE": "ne-NP-HemkalaNeural",
+}
+
+
+def edge_voice_for_lang(lang: str) -> str | None:
+    code = (lang or "").strip().upper()
+    if not code:
+        return None
+    code = code.split("-")[0][:2] if len(code) > 3 else code[:2]
+    return _EDGE_LANG_VOICES.get(code)
+
+
+def gtts_lang_for_code(lang: str) -> str | None:
+    """Map article lang tag → gTTS lang code."""
+    code = (lang or "").strip().lower().replace("_", "-")
+    if not code:
+        return None
+    base = code.split("-")[0][:2]
+    # gTTS uses ISO 639-1; a few need special forms
+    special = {"zh": "zh-CN", "iw": "iw", "he": "iw", "jv": "jw"}
+    return special.get(base, base)
+
+
 class TTSEngine:
     """Synthesize + play article audio; stoppable."""
 
     def __init__(self):
         self._proc: subprocess.Popen | None = None
         self._lock = threading.Lock()
+        self._speak_lang: str | None = None
         self._playing = False
         from worldnews.paths import cache_dir
 
@@ -355,8 +403,13 @@ class TTSEngine:
         text: str,
         on_sentence: Callable[[int, str, list[str]], None] | None = None,
         sentences: list[str] | None = None,
+        lang: str | None = None,
     ) -> str:
-        """Synthesize + play. Prefers sentence-by-sentence for fast start & sync."""
+        """Synthesize + play. Prefers sentence-by-sentence for fast start & sync.
+
+        ``lang`` (article language tag, e.g. ML/HI/AR) picks a matching Edge/gTTS
+        voice when the user is on those providers so non-English stories are audible.
+        """
         text = (text or "").strip()
         if not text:
             return "Nothing to speak"
@@ -364,6 +417,7 @@ class TTSEngine:
             text = text[:3497] + "…"
         self.stop()
         provider = voice_cfg.get_provider()
+        self._speak_lang = (lang or "").strip().upper()[:8] or None
         sents = sentences or split_speech_sentences(text)
         if not sents:
             sents = [text]
@@ -391,6 +445,7 @@ class TTSEngine:
         finally:
             self._playing = False
             self._cleanup_proc()
+            self._speak_lang = None
         name = VOICE_PROVIDERS.get(provider, {}).get("name", provider)
         return f"Speaking via {name}"
 
@@ -468,6 +523,7 @@ class TTSEngine:
 
         self._playing = False
         self._cleanup_proc()
+        self._speak_lang = None
         return f"Speaking via {name}"
 
     def _lead_in_path(self) -> Path:
@@ -509,6 +565,15 @@ class TTSEngine:
 
     def _synthesize(self, provider: str, text: str) -> Path:
         voice = voice_cfg.get_voice(provider)
+        # Match article language when speaking hidden complex-script stories
+        lang = getattr(self, "_speak_lang", None) or ""
+        if lang:
+            if provider == "edge":
+                mapped = edge_voice_for_lang(lang)
+                if mapped:
+                    voice = mapped
+            elif provider == "gtts":
+                voice = gtts_lang_for_code(lang) or voice or "en"
         stamp = int(time.time() * 1000)
         if provider in _WAV_PROVIDERS:
             out = self.cache_dir / f"speak-{stamp}.wav"
@@ -1631,11 +1696,16 @@ def split_speech_sentences(text: str) -> list[str]:
     """Split narration into sentence-sized chunks for highlight sync.
 
     Avoids false breaks on initials (J.R.R.), titles (Mr./Dr.), dotted
-    abbrevs (U.S./e.g.), and decimals.
+    abbrevs (U.S./e.g.), and decimals. Also breaks on Indic danda and
+    CJK / Arabic sentence punctuation so Malayalam/Hindi/Arabic chunk cleanly.
     """
     raw = " ".join((text or "").split())
     if not raw:
         return []
+
+    # Normalize common non-Latin terminators to '.' for the Latin splitter path
+    for mark in ("।", "॥", "。", "！", "？", "؟", "﹒"):
+        raw = raw.replace(mark, ". ")
 
     sentences: list[str] = []
     start = 0
@@ -1688,7 +1758,22 @@ def split_speech_sentences(text: str) -> list[str]:
             merged[-1] = f"{merged[-1]} {p}"
         else:
             merged.append(p)
-    return merged or [raw]
+    # Cap very long runs (no punctuation) into ~280 char chunks for TTS APIs
+    capped: list[str] = []
+    for p in merged:
+        if len(p) <= 280:
+            capped.append(p)
+            continue
+        buf = p
+        while len(buf) > 280:
+            cut = buf.rfind(" ", 0, 280)
+            if cut < 80:
+                cut = 280
+            capped.append(buf[:cut].strip())
+            buf = buf[cut:].strip()
+        if buf:
+            capped.append(buf)
+    return capped or [raw]
 
 
 def split_body_sentences(plain: str, max_chars: int = 2800) -> list[str]:

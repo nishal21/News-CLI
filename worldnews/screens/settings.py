@@ -75,9 +75,15 @@ class SettingsScreen(ModalScreen[dict | None]):
                                 id="btn-images",
                             )
                             yield Button("My websites", id="btn-feeds")
+                        yield Button(
+                            f"Scripts: {getattr(self.settings, 'script_mode', 'safe')}",
+                            id="btn-script-mode",
+                        )
                         yield Static(
                             "Themes preview as you move · Enter saves.\n"
-                            "My websites = add any news site (any language).",
+                            "My websites = add any news site (any language).\n"
+                            "Scripts: safe/plain hide Indic glyphs (default) → native shows them.\n"
+                            "CLI: --plain / --native-titles",
                             classes="settings-hint",
                         )
 
@@ -189,10 +195,12 @@ class SettingsScreen(ModalScreen[dict | None]):
             self.dismiss({"feeds": True, "open_custom": True})
 
     def _status_text(self) -> str:
+        mode = getattr(self.settings, "script_mode", "safe")
         return (
             f"Theme [b]{self.settings.theme}[/] · "
             f"Density [b]{self.settings.density}[/] · "
-            f"Images [b]{'on' if self.settings.auto_images else 'off'}[/]\n"
+            f"Images [b]{'on' if self.settings.auto_images else 'off'}[/] · "
+            f"Scripts [b]{mode}[/]\n"
             f"AI [b]{ai.get_provider()}[/] / {ai.get_model()} · "
             f"Voice [b]{voice_cfg.get_provider()}[/]"
         )
@@ -695,6 +703,28 @@ class SettingsScreen(ModalScreen[dict | None]):
                 f"Images: {'on' if self.settings.auto_images else 'off'}"
             )
             self.query_one("#settings-status", Static).update(self._status_text())
+        elif bid == "btn-script-mode":
+            order = ("safe", "plain", "native")
+            cur = getattr(self.settings, "script_mode", "safe")
+            try:
+                nxt = order[(order.index(cur) + 1) % len(order)]
+            except ValueError:
+                nxt = "safe"
+            self.settings.set_script_mode(nxt)
+            self._changed["script_mode"] = nxt
+            try:
+                self.app.script_mode = nxt
+            except Exception:
+                pass
+            event.button.label = f"Scripts: {nxt}"
+            self.query_one("#settings-status", Static).update(self._status_text())
+            try:
+                self.app.notify(
+                    f"Complex scripts → {nxt}",
+                    severity="information",
+                )
+            except Exception:
+                pass
         elif bid == "btn-feeds":
             feeds = getattr(self.app, "custom_feeds", None)
             if feeds is not None:

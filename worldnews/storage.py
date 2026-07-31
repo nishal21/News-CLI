@@ -65,6 +65,7 @@ class Settings:
         "theme": "newsroom",
         "density": "normal",
         "show_sidebar": True,
+        "script_mode": "safe",
     }
 
     def __init__(self):
@@ -75,6 +76,7 @@ class Settings:
         self.theme = "newsroom"
         self.density = "normal"
         self.show_sidebar = True
+        self.script_mode = "safe"
         self.read_urls = set()
         self._load()
 
@@ -98,6 +100,13 @@ class Settings:
                 self.theme = "newsroom"
             self.density = d.get("density", "normal")
             self.show_sidebar = d.get("show_sidebar", True)
+            mode = (d.get("script_mode") or "safe").strip().lower()
+            if mode in ("ascii", "plain"):
+                self.script_mode = "plain"
+            elif mode in ("native", "native-titles", "raw"):
+                self.script_mode = "native"
+            else:
+                self.script_mode = "safe"
             self.read_urls = set(d.get("read_urls", []))
         except Exception:
             pass
@@ -113,6 +122,7 @@ class Settings:
                 "theme": self.theme,
                 "density": self.density,
                 "show_sidebar": self.show_sidebar,
+                "script_mode": self.script_mode,
                 "read_urls": list(self.read_urls)[-500:],
             },
         )
@@ -131,6 +141,16 @@ class Settings:
 
     def set_show_sidebar(self, show: bool):
         self.show_sidebar = bool(show)
+        self.save()
+
+    def set_script_mode(self, mode: str):
+        mode = (mode or "safe").strip().lower()
+        if mode in ("ascii", "plain"):
+            self.script_mode = "plain"
+        elif mode in ("native", "native-titles", "raw"):
+            self.script_mode = "native"
+        else:
+            self.script_mode = "safe"
         self.save()
 
     def mark_read(self, url: str):

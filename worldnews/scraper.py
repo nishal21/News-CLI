@@ -36,6 +36,18 @@ def _bs4_parser() -> str:
 def _soup(markup, *, features: str | None = None):
     return BeautifulSoup(markup, features or _bs4_parser())
 
+
+def _plain_from_html(text: str, max_len: int = 700) -> str:
+    """Strip tags / collapse whitespace for AniList & MAL blurbs."""
+    if not text:
+        return ""
+    t = re.sub(r"<br\s*/?>", "\n", str(text), flags=re.I)
+    t = re.sub(r"<[^>]+>", " ", t)
+    t = html.unescape(re.sub(r"\s+", " ", t)).strip()
+    if max_len and len(t) > max_len:
+        return t[: max_len - 1].rstrip() + "…"
+    return t
+
 # Stub / useless blurbs we treat as missing
 _STUB_DESCS = {
     "",
@@ -133,6 +145,53 @@ def _clean_text(raw: str, limit: int = 1200) -> str:
         return ""
     text = _soup(raw).get_text(" ", strip=True)
     text = html.unescape(re.sub(r"\s+", " ", text)).strip()
+    if len(text) > limit:
+        text = text[: limit - 1].rsplit(" ", 1)[0] + "…"
+    return text
+
+
+def _html_body_text(raw: str, limit: int = 14000) -> str:
+    """Turn RSS/HTML fragments into full article text (keep paragraphs)."""
+    if not raw:
+        return ""
+    s = str(raw).strip()
+    if not s:
+        return ""
+    # Plain text already
+    if "<" not in s:
+        text = html.unescape(re.sub(r"\s+", " ", s)).strip()
+    else:
+        soup = _soup(s)
+        for bad in soup(["script", "style", "noscript", "iframe", "svg"]):
+            try:
+                bad.decompose()
+            except Exception:
+                pass
+        paras: list[str] = []
+        for tag in soup.find_all(["p", "h2", "h3", "h4", "li", "blockquote"]):
+            t = html.unescape(tag.get_text(" ", strip=True) or "")
+            t = re.sub(r"\s+", " ", t).strip()
+            if len(t) >= 20:
+                paras.append(t)
+        if paras:
+            text = "\n\n".join(paras)
+        else:
+            text = soup.get_text("\n", strip=True)
+            text = html.unescape(re.sub(r"[ \t]+", " ", text))
+            text = re.sub(r"\n{3,}", "\n\n", text).strip()
+            if "\n" not in text:
+                text = re.sub(r"\s+", " ", text)
+    # Soft-break interview / Q&A walls of text for the reader
+    if text.count("\n\n") < 2 and len(text) > 900:
+        text = re.sub(
+            r"\s+(?=(?:"
+            r"Tell me |What |How |Why |Was |Were |Do you |Did you |"
+            r"Can you |Could you |Where |When |"
+            r"[A-Z][a-z]+(?:\s[A-Z][a-z]+)?\s*:\s"
+            r"))",
+            "\n\n",
+            text,
+        )
     if len(text) > limit:
         text = text[: limit - 1].rsplit(" ", 1)[0] + "…"
     return text
@@ -242,11 +301,19 @@ def _ann_pick_article(item, base: str):
 
 
 def _needs_full_body(desc: str, article: dict) -> bool:
-    """Scrape until we have a real story (retry if we only got a bio/teaser)."""
+    """Scrape page when RSS is stub/teaser; skip if we already have a full story."""
     d = (desc or "").strip()
     if article.get("body_fetched"):
         if _looks_like_bio(d) or len(d) < 280:
             return True
+        return False
+    # Truncated teaser (old 1400-cap or feed ellipsis)
+    if d.endswith("…") or d.endswith("..."):
+        return True
+    if _is_stub(d) or _looks_like_bio(d):
+        return True
+    # Solid content:encoded already (Crunchyroll, many WordPress feeds)
+    if len(d) >= 900:
         return False
     return True
 
@@ -658,14 +725,30 @@ def _img_from_entry(entry, base: str = "") -> str:
 
 
 def _desc_from_entry(entry) -> str:
-    chunks = []
+    """Prefer full content:encoded / Atom content over short RSS summary."""
+    chunks: list[str] = []
     if hasattr(entry, "content") and entry.content:
-        chunks.append(entry.content[0].get("value", ""))
+        for block in entry.content:
+            chunks.append(block.get("value", "") or "")
+    # Some feeds put the long body in content_encoded
+    for key in ("content_encoded", "content:encoded"):
+        val = entry.get(key) if hasattr(entry, "get") else None
+        if not val:
+            val = getattr(entry, key, None)
+        if val:
+            chunks.append(val if isinstance(val, str) else str(val))
     for key in ("summary", "description", "subtitle"):
         chunks.append(entry.get(key, "") or "")
+
     best = ""
     for c in chunks:
-        text = _clean_text(c, 1400)
+        if not c:
+            continue
+        # Always prefer body formatter for long payloads (plain or HTML)
+        if len(c) > 400:
+            text = _html_body_text(c, 14000)
+        else:
+            text = _clean_text(c, 14000)
         if len(text) > len(best):
             best = text
     return best
@@ -909,6 +992,240 @@ class Scraper:
                 )
         return arts
 
+    def _anilist_gql(self, query: str, variables: dict | None = None) -> dict:
+        """AniList GraphQL (no auth). Returns data dict or {}."""
+        try:
+            time.sleep(random.uniform(0.15, 0.4))
+            r = self.client.post(
+                "https://graphql.anilist.co",
+                json={"query": query, "variables": variables or {}},
+                timeout=20,
+                headers={
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                },
+            )
+            r.raise_for_status()
+            payload = r.json()
+            if payload.get("errors"):
+                return {}
+            return payload.get("data") or {}
+        except Exception:
+            return {}
+
+    def _anilist(self, limit: int = 24) -> list:
+        """AniList: new anime/manga + recent community reviews."""
+        arts: list[dict] = []
+        seen: set[str] = set()
+
+        def _add(item: dict) -> None:
+            url = item.get("url") or ""
+            if not url or url in seen or len(arts) >= limit:
+                return
+            seen.add(url)
+            arts.append(item)
+
+        media_q = """
+        query ($mediaType: MediaType, $page: Int) {
+          Page(page: $page, perPage: 10) {
+            media(type: $mediaType, sort: ID_DESC) {
+              id
+              title { romaji english native }
+              type
+              format
+              status
+              siteUrl
+              description(asHtml: false)
+              coverImage { large }
+              genres
+              startDate { year month day }
+            }
+          }
+        }
+        """
+        for media_type, label in (("ANIME", "Anime"), ("MANGA", "Manga")):
+            data = self._anilist_gql(media_q, {"mediaType": media_type, "page": 1})
+            for m in (data.get("Page") or {}).get("media") or []:
+                titles = m.get("title") or {}
+                name = (
+                    titles.get("english")
+                    or titles.get("romaji")
+                    or titles.get("native")
+                    or "Untitled"
+                )
+                genres = ", ".join((m.get("genres") or [])[:6])
+                fmt = m.get("format") or label
+                status = m.get("status") or ""
+                desc = _plain_from_html(m.get("description") or "")
+                bits = [f"New {label.lower()} on AniList ({fmt})."]
+                if status:
+                    bits.append(f"Status: {status.replace('_', ' ').title()}.")
+                if genres:
+                    bits.append(f"Genres: {genres}.")
+                if desc:
+                    bits.append(desc)
+                sd = m.get("startDate") or {}
+                pub = ""
+                if sd.get("year"):
+                    pub = f"{sd.get('year')}-{sd.get('month') or 1:02d}-{sd.get('day') or 1:02d}"
+                cover = (m.get("coverImage") or {}).get("large") or ""
+                _add(
+                    {
+                        "title": f"{label}: {name}",
+                        "source": "AniList",
+                        "author": "",
+                        "published": pub,
+                        "description": " ".join(bits)[:900] or "No description",
+                        "url": m.get("siteUrl") or f"https://anilist.co/{label.lower()}/{m.get('id')}",
+                        "image_url": cover,
+                        "lang": "EN",
+                    }
+                )
+
+        review_q = """
+        query ($page: Int) {
+          Page(page: $page, perPage: 10) {
+            reviews(sort: CREATED_AT_DESC) {
+              id
+              summary
+              body(asHtml: false)
+              score
+              siteUrl
+              createdAt
+              user { name }
+              media {
+                title { romaji english }
+                type
+                siteUrl
+                coverImage { large }
+              }
+            }
+          }
+        }
+        """
+        data = self._anilist_gql(review_q, {"page": 1})
+        for rev in (data.get("Page") or {}).get("reviews") or []:
+            media = rev.get("media") or {}
+            mt = media.get("title") or {}
+            mname = mt.get("english") or mt.get("romaji") or "Untitled"
+            score = rev.get("score")
+            score_bit = f" — {score}/100" if score is not None else ""
+            summary = _plain_from_html(rev.get("summary") or "")
+            body = _plain_from_html(rev.get("body") or "")
+            desc = summary or body or "AniList community review."
+            if body and summary and body != summary:
+                desc = f"{summary} {body}"[:900]
+            author = ((rev.get("user") or {}).get("name")) or ""
+            pub = ""
+            try:
+                pub = time.strftime("%Y-%m-%d", time.gmtime(int(rev.get("createdAt") or 0)))
+            except Exception:
+                pub = ""
+            cover = (media.get("coverImage") or {}).get("large") or ""
+            _add(
+                {
+                    "title": f"Review · {mname}{score_bit}",
+                    "source": "AniList Reviews",
+                    "author": author,
+                    "published": pub,
+                    "description": desc[:900] or "No description",
+                    "url": rev.get("siteUrl")
+                    or f"https://anilist.co/review/{rev.get('id')}",
+                    "image_url": cover,
+                    "lang": "EN",
+                }
+            )
+
+        return arts[:limit]
+
+    def _mal(self, limit: int = 24) -> list:
+        """MyAnimeList news RSS + Jikan seasonal/top manga cards."""
+        arts: list[dict] = []
+        seen: set[str] = set()
+
+        def _add_all(items: list) -> None:
+            for a in items:
+                url = a.get("url") or ""
+                if not url or url in seen:
+                    continue
+                seen.add(url)
+                arts.append(a)
+                if len(arts) >= limit:
+                    return
+
+        try:
+            _add_all(self._rss("https://myanimelist.net/rss/news.xml", "MyAnimeList"))
+        except Exception:
+            pass
+        if len(arts) >= limit:
+            return arts[:limit]
+
+        # Jikan (unofficial MAL API) — seasonal anime + top manga
+        for endpoint, label in (
+            ("https://api.jikan.moe/v4/seasons/now?limit=12", "Airing now"),
+            ("https://api.jikan.moe/v4/top/manga?limit=10", "Top manga"),
+        ):
+            if len(arts) >= limit:
+                break
+            try:
+                time.sleep(random.uniform(0.35, 0.7))  # Jikan rate limit
+                r = self.client.get(
+                    endpoint,
+                    timeout=20,
+                    headers={"Accept": "application/json", "User-Agent": "worldnews-cli"},
+                )
+                r.raise_for_status()
+                rows = (r.json() or {}).get("data") or []
+            except Exception:
+                continue
+            for row in rows:
+                if len(arts) >= limit:
+                    break
+                titles = row.get("titles") or []
+                name = row.get("title") or ""
+                for t in titles:
+                    if (t.get("type") or "").lower() == "english" and t.get("title"):
+                        name = t["title"]
+                        break
+                if not name:
+                    continue
+                url = (row.get("url") or "").strip()
+                if not url or url in seen:
+                    continue
+                synopsis = _plain_from_html(row.get("synopsis") or "")[:700]
+                kind = "Manga" if "manga" in endpoint else "Anime"
+                score = row.get("score")
+                score_bit = f" Score {score}." if score else ""
+                genres = ", ".join(
+                    g.get("name") for g in (row.get("genres") or [])[:5] if g.get("name")
+                )
+                desc_bits = [f"{label} on MyAnimeList ({kind}).{score_bit}"]
+                if genres:
+                    desc_bits.append(f"Genres: {genres}.")
+                if synopsis:
+                    desc_bits.append(synopsis)
+                images = row.get("images") or {}
+                jpg = (images.get("jpg") or {}) if isinstance(images, dict) else {}
+                img = jpg.get("large_image_url") or jpg.get("image_url") or ""
+                pub = ""
+                aired = row.get("aired") or row.get("published") or {}
+                if isinstance(aired, dict):
+                    pub = (aired.get("from") or "")[:10]
+                seen.add(url)
+                arts.append(
+                    {
+                        "title": f"{kind}: {name}",
+                        "source": "MyAnimeList",
+                        "author": "",
+                        "published": pub,
+                        "description": " ".join(desc_bits)[:900] or "No description",
+                        "url": url,
+                        "image_url": img,
+                        "lang": "EN",
+                    }
+                )
+        return arts[:limit]
+
     def enrich_article(self, article: dict, delay: bool = True) -> dict:
         """Fetch the article URL → title, image, and full story body."""
         out = dict(article)
@@ -920,11 +1237,22 @@ class Scraper:
             return out
         need_body = _needs_full_body(out.get("description", ""), out)
         need_img = not out.get("image_url")
+        # RSS already has a full story — still try image if missing
         if not need_body and not need_img:
+            out["body_fetched"] = True
             return out
-        r = self._get(url, timeout=20, delay=delay)
+        if not need_body and need_img:
+            r = self._get(url, timeout=20, delay=delay)
+            if r:
+                scraped = scrape_article_page(r.content, url)
+                if scraped.get("image_url"):
+                    out["image_url"] = scraped["image_url"]
+            out["body_fetched"] = True
+            return out
+
+        r = self._get(url, timeout=25, delay=delay)
         if not r:
-            return out  # retry next open
+            return out  # retry next open — do not mark fetched
         scraped = scrape_article_page(r.content, url)
         # Reject phpBB / forum scrapes
         body_probe = (scraped.get("description") or "").lower()
@@ -935,40 +1263,71 @@ class Scraper:
             or len(scraped["title"]) > len(out.get("title") or "")
         ):
             if not _is_junk_headline(scraped["title"]):
-                out["title"] = scraped["title"]
-        if need_img and scraped.get("image_url"):
-            out["image_url"] = scraped["image_url"]
-        # Always adopt a better image from the page when RSS had none or a weak one
-        if scraped.get("image_url") and not out.get("image_url"):
-            out["image_url"] = scraped["image_url"]
+                # Ignore generic site titles (SPA shells)
+                st = scraped["title"].strip().lower()
+                if "crunchyroll news" not in st and st not in {
+                    "home",
+                    "news",
+                    "anime news",
+                }:
+                    out["title"] = scraped["title"]
+        if scraped.get("image_url"):
+            if need_img or not out.get("image_url"):
+                out["image_url"] = scraped["image_url"]
         if need_body:
-            body = scraped.get("description") or ""
+            body = (scraped.get("description") or "").strip()
             rss = (out.get("description") or "").strip()
-            if body and len(body) > max(120, len(rss)):
+            adopted = False
+            if body and len(body) > max(200, len(rss)):
                 out["description"] = body
-            elif body and (_is_stub(rss) or len(body) > len(rss)):
+                adopted = True
+            elif body and (_is_stub(rss) or len(body) > len(rss) + 100):
                 out["description"] = body
-            out["body_fetched"] = True
-            out["lang"] = detect_language(
-                f"{out.get('title', '')} {out.get('description', '')}",
-                out.get("lang", ""),
-            )
+                adopted = True
+            # Mark complete only when we have a real story (page or long RSS)
+            final = (out.get("description") or "").strip()
+            if adopted or (len(final) >= 800 and not final.endswith("…")):
+                out["body_fetched"] = True
+                out["lang"] = detect_language(
+                    f"{out.get('title', '')} {out.get('description', '')}",
+                    out.get("lang", ""),
+                )
         return out
 
     def fetch(self, cat):
+        """Fetch category feeds; never abort the whole category on one bad source."""
         sources = NEWS_SOURCES.get(cat, [])
         arts, seen = [], set()
         for s in sources:
-            if s["type"] == "ann":
-                items = self._ann(12)
-            elif s["type"] == "rss":
-                items = self._rss(s["url"], s.get("name", ""))
-            else:
+            try:
+                stype = s.get("type")
+                if stype == "ann":
+                    items = self._ann(12)
+                elif stype == "anilist":
+                    items = self._anilist(int(s.get("limit") or 24))
+                elif stype == "mal":
+                    items = self._mal(int(s.get("limit") or 24))
+                elif stype == "rss":
+                    items = self._rss(s.get("url", ""), s.get("name", ""))
+                else:
+                    items = []
+            except Exception:
                 items = []
+            if not items:
+                continue
             for a in items:
-                if a["url"] and a["url"] not in seen:
+                try:
+                    url = a.get("url") or ""
+                    if not url or url in seen:
+                        continue
+                    if not _article_matches_category(
+                        a, cat, trusted_feed=bool(s.get("trust"))
+                    ):
+                        continue
                     arts.append(a)
-                    seen.add(a["url"])
+                    seen.add(url)
+                except Exception:
+                    continue
         return arts
 
     def search(self, q):
@@ -1005,6 +1364,217 @@ class Scraper:
         return self._img(url) if url else None
 
 
+# Category relevance — keep Marvel/Anime/etc. on-topic when feeds mix genres.
+# Empty / missing key → no keyword filter (general, sports, …).
+CATEGORY_KEYWORDS = {
+    "anime": [
+        "anime",
+        "manga",
+        "otaku",
+        "seinen",
+        "shonen",
+        "shoujo",
+        "shojo",
+        "studio",
+        "crunchyroll",
+        "funimation",
+        "myanimelist",
+        "anilist",
+        "animenewsnetwork",
+        "light novel",
+        "cosplay",
+        "waifu",
+        "isekai",
+        "mecha",
+        "idol",
+        "vocaloid",
+        "japanimation",
+    ],
+    "marvel": [
+        "marvel",
+        "mcu",
+        "avengers",
+        "spider-man",
+        "spiderman",
+        "iron man",
+        "ironman",
+        "captain america",
+        "thor",
+        "hulk",
+        "black panther",
+        "doctor strange",
+        "dr strange",
+        "x-men",
+        "xmen",
+        "wolverine",
+        "deadpool",
+        "guardians of the galaxy",
+        "fantastic four",
+        "ant-man",
+        "antman",
+        "scarlet witch",
+        "loki",
+        "hawkeye",
+        "daredevil",
+        "punisher",
+        "venom",
+        "moon knight",
+        "she-hulk",
+        "ms. marvel",
+        "ms marvel",
+        "wandavision",
+        "multiverse",
+        "stan lee",
+        "disney+",
+        "disney plus",
+    ],
+    "dc": [
+        "dc comics",
+        "dc universe",
+        "dceu",
+        "batman",
+        "superman",
+        "wonder woman",
+        "justice league",
+        "joker",
+        "aquaman",
+        "flash",
+        "green lantern",
+        "cyborg",
+        "harley quinn",
+        "suicide squad",
+        "shazam",
+        "peacemaker",
+        "black adam",
+        "gotham",
+        "metropolis",
+        "arkham",
+        "james gunn",
+        "warner bros",
+        "hbo max",
+        "max original",
+    ],
+    "bollywood": [
+        "bollywood",
+        "hindi film",
+        "hindi movie",
+        "box office",
+        "tollywood",
+        "mumbai",
+        "filmfare",
+        "pinkvilla",
+        "hungama",
+    ],
+    "mollywood": [
+        "mollywood",
+        "malayalam",
+        "kerala",
+        "kochi",
+        "mammootty",
+        "mohanlal",
+        "dulquer",
+        "prithviraj",
+        "fahadh",
+        "manorama",
+        "onmanorama",
+    ],
+    "ai": [
+        "ai",
+        "artificial intelligence",
+        "machine learning",
+        "llm",
+        "chatgpt",
+        "openai",
+        "gemini",
+        "claude",
+        "deepseek",
+        "anthropic",
+        "neural",
+        "generative",
+        "diffusion",
+        "transformer",
+        "huggingface",
+        "hugging face",
+    ],
+}
+
+# Negative keywords — drop cross-contamination (e.g. DC stories in Marvel feeds).
+CATEGORY_EXCLUDE = {
+    "marvel": [
+        "dc",
+        "dc comics",
+        "dceu",
+        "dc characters",
+        "dc's",
+        "dc’s",
+        "batman",
+        "superman",
+        "wonder woman",
+        "justice league",
+        "joker",
+        "aquaman",
+        "harley quinn",
+        "gotham",
+        "mr. freeze",
+        "mr freeze",
+        "riddler",
+        "clayface",
+        "green lantern",
+        "shazam",
+        "peacemaker",
+        "black adam",
+    ],
+    "dc": [
+        "marvel",
+        "mcu",
+        "avengers",
+        "spider-man",
+        "spiderman",
+        "iron man",
+        "x-men",
+        "wolverine",
+        "deadpool",
+        "stan lee",
+        "doctor doom",
+        "fantastic four",
+        "guardians of the galaxy",
+    ],
+}
+
+
+def _keyword_in(text: str, key: str) -> bool:
+    """Substring match; short tokens (ai, dc) use word boundaries."""
+    k = (key or "").lower().strip()
+    if not k:
+        return False
+    if len(k) <= 3 or k in {"flash", "thor", "hulk", "loki", "venom"}:
+        return re.search(rf"(?<![a-z0-9]){re.escape(k)}(?![a-z0-9])", text) is not None
+    return k in text
+
+
+def _article_matches_category(
+    article: dict, cat: str, *, trusted_feed: bool = False
+) -> bool:
+    """True if article belongs in ``cat`` (keyword allow + exclude lists)."""
+    keys = CATEGORY_KEYWORDS.get(cat)
+    if not keys:
+        return True
+    title_desc = (
+        f"{article.get('title', '')} {article.get('description', '')} "
+        f"{article.get('url', '')}"
+    ).lower()
+    full = f"{title_desc} {article.get('source', '')}".lower()
+    # Exclude uses title/body/url only — source names like "ScreenRant Marvel"
+    # would otherwise cancel DC/Marvel cross-contamination checks.
+    for bad in CATEGORY_EXCLUDE.get(cat, ()):
+        if _keyword_in(title_desc, bad):
+            if not any(_keyword_in(title_desc, k) for k in keys[:8]):
+                return False
+    if trusted_feed:
+        return True
+    return any(_keyword_in(full, k) for k in keys)
+
+
 NEWS_SOURCES = {
     "general": [
         {"type": "rss", "url": "https://feeds.bbci.co.uk/news/rss.xml", "name": "BBC"},
@@ -1031,28 +1601,155 @@ NEWS_SOURCES = {
         {"type": "rss", "url": "https://www.abc.net.au/news/feed/51120/rss.xml", "name": "ABC Australia"},
     ],
     "anime": [
-        {"type": "ann"},
-        {"type": "rss", "url": "https://www.crunchyroll.com/feed/news", "name": "Crunchyroll"},
-        {"type": "rss", "url": "https://www.animenewsnetwork.com/news/rss.xml", "name": "ANN RSS"},
-        {"type": "rss", "url": "https://www.animenewsnetwork.com/encyclopedia/rss.xml?id=1422", "name": "ANN Interest"},
-        {"type": "rss", "url": "https://www.sbs.com.au/feeds/anime-news", "name": "SBS Anime"},
-        {"type": "rss", "url": "https://www.animenewsnetwork.com/news/anime/rss.xml", "name": "ANN Anime"},
-        {"type": "rss", "url": "https://www.animenewsnetwork.com/news/manga/rss.xml", "name": "ANN Manga"},
+        {"type": "ann", "trust": True},
+        {"type": "anilist", "trust": True, "limit": 28},
+        {"type": "mal", "trust": True, "limit": 28},
+        {
+            "type": "rss",
+            "url": "https://www.animenewsnetwork.com/all/rss.xml?ann-edition=us",
+            "name": "ANN All",
+            "trust": True,
+        },
+        {
+            "type": "rss",
+            "url": "https://www.animenewsnetwork.com/news/rss.xml?ann-edition=us",
+            "name": "ANN News",
+            "trust": True,
+        },
+        {
+            "type": "rss",
+            "url": "https://www.animenewsnetwork.com/interest/rss.xml?ann-edition=us",
+            "name": "ANN Interest",
+            "trust": True,
+        },
+        {
+            "type": "rss",
+            "url": "https://www.animenewsnetwork.com/review/rss.xml?ann-edition=us",
+            "name": "ANN Reviews",
+            "trust": True,
+        },
+        {
+            "type": "rss",
+            "url": "https://cr-news-api-service.prd.crunchyrollsvc.com/v1/en-US/rss",
+            "name": "Crunchyroll",
+            "trust": True,
+        },
+        {
+            "type": "rss",
+            "url": "https://www.animeuknews.net/feed/",
+            "name": "Anime UK News",
+            "trust": True,
+        },
+        {
+            "type": "rss",
+            "url": "https://comicbook.com/anime/feed/",
+            "name": "ComicBook Anime",
+            "trust": True,
+        },
+        {
+            "type": "rss",
+            "url": "https://www.cbr.com/category/anime/feed/",
+            "name": "CBR Anime",
+        },
+        {
+            "type": "rss",
+            "url": "https://screenrant.com/tag/anime/feed/",
+            "name": "ScreenRant Anime",
+        },
+        {
+            "type": "rss",
+            "url": "https://www.animenewsnetwork.com/news/rss.xml?ann-edition=uk",
+            "name": "ANN UK",
+            "trust": True,
+        },
     ],
     "marvel": [
-        {"type": "rss", "url": "https://screenrant.com/feed/", "name": "ScreenRant"},
-        {"type": "rss", "url": "https://www.cbr.com/feed/", "name": "CBR"},
-        {"type": "rss", "url": "https://comicbook.com/marvel/feed/", "name": "ComicBook Marvel"},
-        {"type": "rss", "url": "https://www.marvel.com/rss", "name": "Marvel.com"},
-        {"type": "rss", "url": "https://www.cbr.com/category/movies/marvel/feed/", "name": "CBR Marvel Movies"},
-        {"type": "rss", "url": "https://screenrant.com/tag/marvel/feed/", "name": "ScreenRant Marvel"},
+        {
+            "type": "rss",
+            "url": "https://comicbook.com/tag/marvel/feed/",
+            "name": "ComicBook Marvel",
+            "trust": True,
+        },
+        {
+            "type": "rss",
+            "url": "https://comicbook.com/marvel/feed/",
+            "name": "ComicBook Marvel Sec",
+            "trust": True,
+        },
+        {
+            "type": "rss",
+            "url": "https://www.cbr.com/tag/marvel/feed/",
+            "name": "CBR Marvel",
+            "trust": True,
+        },
+        {
+            "type": "rss",
+            "url": "https://www.cbr.com/category/movies/marvel/feed/",
+            "name": "CBR Marvel Movies",
+            "trust": True,
+        },
+        {
+            "type": "rss",
+            "url": "https://screenrant.com/tag/marvel/feed/",
+            "name": "ScreenRant Marvel",
+            "trust": True,
+        },
+        {
+            "type": "rss",
+            "url": "https://www.cbr.com/tag/mcu/feed/",
+            "name": "CBR MCU",
+            "trust": True,
+        },
+        {
+            "type": "rss",
+            "url": "https://screenrant.com/tag/mcu/feed/",
+            "name": "ScreenRant MCU",
+            "trust": True,
+        },
     ],
     "dc": [
-        {"type": "rss", "url": "https://comicbook.com/dc/feed/", "name": "ComicBook DC"},
-        {"type": "rss", "url": "https://www.cbr.com/category/comics/dc/feed/", "name": "CBR DC"},
-        {"type": "rss", "url": "https://screenrant.com/tag/dc/feed/", "name": "ScreenRant DC"},
-        {"type": "rss", "url": "https://comicbook.com/feed/", "name": "ComicBook"},
-        {"type": "rss", "url": "https://www.cbr.com/category/movies/dc/feed/", "name": "CBR DC Movies"},
+        {
+            "type": "rss",
+            "url": "https://comicbook.com/tag/dc/feed/",
+            "name": "ComicBook DC",
+            "trust": True,
+        },
+        {
+            "type": "rss",
+            "url": "https://comicbook.com/dc/feed/",
+            "name": "ComicBook DC Sec",
+            "trust": True,
+        },
+        {
+            "type": "rss",
+            "url": "https://www.cbr.com/category/comics/dc/feed/",
+            "name": "CBR DC",
+            "trust": True,
+        },
+        {
+            "type": "rss",
+            "url": "https://www.cbr.com/category/movies/dc/feed/",
+            "name": "CBR DC Movies",
+            "trust": True,
+        },
+        {
+            "type": "rss",
+            "url": "https://screenrant.com/tag/dc/feed/",
+            "name": "ScreenRant DC",
+            "trust": True,
+        },
+        {
+            "type": "rss",
+            "url": "https://www.cbr.com/tag/batman/feed/",
+            "name": "CBR Batman",
+            "trust": True,
+        },
+        {
+            "type": "rss",
+            "url": "https://screenrant.com/tag/batman/feed/",
+            "name": "ScreenRant Batman",
+            "trust": True,
+        },
     ],
     "hollywood": [
         {"type": "rss", "url": "https://variety.com/feed/", "name": "Variety"},

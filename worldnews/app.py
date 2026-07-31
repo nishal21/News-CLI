@@ -53,6 +53,7 @@ from worldnews.widgets import (
     StatusLine,
     Toast,
 )
+from worldnews.widgets.splash import AsciiSplash
 from worldnews.platform import open_url
 
 CSS_PATH = Path(__file__).parent / "styles" / "app.tcss"
@@ -115,6 +116,7 @@ class WorldNewsApp(App):
         self,
         start_feed: str | None = None,
         start_mode: str | None = None,
+        script_mode: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -142,6 +144,22 @@ class WorldNewsApp(App):
         self._image_bytes: bytes | None = None
         self._image_url: str = ""
         self._speak_sentences: list | None = None
+        self._boot_min_done = False
+        self._boot_feed_ready = False
+        self._boot_force_done = False
+        # CLI override wins; else persisted settings
+        from worldnews.text_display import normalize_script_mode
+
+        if script_mode:
+            self.script_mode = normalize_script_mode(script_mode)
+            try:
+                self.settings.set_script_mode(self.script_mode)
+            except Exception:
+                pass
+        else:
+            self.script_mode = normalize_script_mode(
+                getattr(self.settings, "script_mode", "safe")
+            )
 
     def compose(self) -> ComposeResult:
         yield AppHeader()
@@ -154,6 +172,7 @@ class WorldNewsApp(App):
         with Vertical(id="folio"):
             yield StatusLine(id="statusline")
             yield KeyHints(id="keyhints")
+        yield AsciiSplash(id="boot-splash", boot=True, feed_label="news")
 
     def on_mount(self) -> None:
         register_themes(self)
@@ -170,6 +189,20 @@ class WorldNewsApp(App):
         self._apply_density()
         self._set_status(f"v{__version__} · ready")
         self.query_one(FeedSidebar).select_feed(self.current_feed)
+
+        # Boot splash: show at least ~1.2s, dismiss when first feed ready (cap 4s)
+        self._boot_min_done = False
+        self._boot_feed_ready = False
+        self._boot_force_done = False
+        try:
+            boot = self.query_one("#boot-splash", AsciiSplash)
+            boot.show_for("World News")
+            boot.start()
+        except Exception:
+            pass
+        self.set_timer(1.2, self._boot_min_elapsed)
+        self.set_timer(4.0, self._boot_force_dismiss)
+
         self.load_feed(self.current_feed, self.current_label)
         if self.start_mode == "chat":
             self.push_screen(AIChatScreen())
@@ -178,6 +211,31 @@ class WorldNewsApp(App):
         elif self.start_mode == "offline":
             self.load_feed("offline", "Offline")
         self.set_interval(1.0, self._layout_adapt)
+
+    def _boot_min_elapsed(self) -> None:
+        self._boot_min_done = True
+        self._maybe_dismiss_boot()
+
+    def _boot_force_dismiss(self) -> None:
+        self._boot_force_done = True
+        self._boot_min_done = True
+        self._dismiss_boot_splash()
+
+    def _maybe_dismiss_boot(self) -> None:
+        if self._boot_force_done:
+            return
+        if self._boot_min_done and self._boot_feed_ready:
+            self._dismiss_boot_splash()
+
+    def _dismiss_boot_splash(self) -> None:
+        try:
+            boot = self.query_one("#boot-splash", AsciiSplash)
+            boot.stop()
+            boot.remove_class("splash-on")
+            boot.display = False
+            boot.styles.display = "none"
+        except Exception:
+            pass
 
     def _layout_adapt(self) -> None:
         """Responsive workbench for desktop → Termux phone widths."""
@@ -481,6 +539,8 @@ class WorldNewsApp(App):
         self._set_header_status(
             f"{shown} articles" + (" · scroll for more" if has_more else "")
         )
+        self._boot_feed_ready = True
+        self._maybe_dismiss_boot()
         if visible:
             self.selected = visible[0]
             self.query_one(ArticleReader).show_article(self.selected)
@@ -911,6 +971,23 @@ class WorldNewsApp(App):
                 pass
         if result.get("open_custom"):
             self.load_feed("custom", "My Feeds")
+        if "script_mode" in result:
+            from worldnews.text_display import normalize_script_mode
+
+            self.script_mode = normalize_script_mode(result["script_mode"])
+            self.toast(f"Scripts: {self.script_mode}", "success")
+            try:
+                # Rebuild list labels under new mode
+                al = self.query_one(ArticleList)
+                al.set_articles(
+                    list(self.articles),
+                    has_more=self._visible_count < len(self._pool),
+                )
+                if self.selected:
+                    self.query_one(ArticleReader).show_article(self.selected)
+            except Exception:
+                pass
+
     def action_cycle_theme(self) -> None:
         from worldnews.themes import THEME_CYCLE
 
@@ -1070,27 +1147,63 @@ class WorldNewsApp(App):
         if not article:
             self.toast("Select an article first", "warning")
             return
-        # Speak the on-screen body only (not a rebuilt title+full dump)
+        from worldnews.text_display import (
+            article_needs_audio_fallback,
+            normalize_script_mode,
+        )
         from worldnews.tts import split_body_sentences
 
         reader = self.query_one(ArticleReader)
-        plain = reader.body_plain_text()
-        if len(plain) < 40:
-            plain = (article.get("description") or article.get("title") or "").strip()
-        # Per-paragraph split so each sentence still appears in the reader body
-        sentences = split_body_sentences(plain)
-        if not sentences:
+        mode = "safe"
+        try:
+            mode = normalize_script_mode(
+                getattr(self, "script_mode", None)
+                or getattr(self.settings, "script_mode", "safe")
+            )
+        except Exception:
+            mode = "safe"
+
+        hide = bool(getattr(reader, "_hide_hostile_display", False))
+        audio_fallback = hide or article_needs_audio_fallback(article, mode)
+        article_lang = (article.get("lang") or "").strip()
+
+        # Any language that breaks the TUI: speak full title+body from the article
+        if audio_fallback:
             sentences = article_speech_sentences(article)
-        text = " ".join(sentences) or article_speech_text(article)
+            text = " ".join(sentences) or article_speech_text(article)
+            try:
+                if text:
+                    reader._body_plain = text
+                    reader._hide_hostile_display = True
+            except Exception:
+                pass
+        else:
+            plain = reader.body_plain_text()
+            if len(plain) < 40:
+                plain = (
+                    article.get("description") or article.get("title") or ""
+                ).strip()
+            sentences = split_body_sentences(plain)
+            if not sentences:
+                sentences = article_speech_sentences(article)
+            text = " ".join(sentences) or article_speech_text(article)
+
+        if not (text or "").strip():
+            self.toast("Nothing to speak for this article", "warning")
+            return
+
         self._speak_sentences = sentences
         try:
             reader.set_active_action("speak")
         except Exception:
             pass
-        self.toast(f"Speaking · {voice_cfg.get_provider()}…", "info")
-        self._set_header_status(f"Speaking · preparing…")
-        # Don't highlight until audio for that sentence actually starts (callback)
-        self._speak_worker(text, sentences)
+        n = len(sentences) or 1
+        self.toast(
+            f"Speaking · {voice_cfg.get_provider()} · {n} part(s)…",
+            "info",
+        )
+        self._set_header_status("Speaking · preparing…")
+        self._speak_worker(text, sentences, lang=article_lang or None)
 
     def action_speak_test(self) -> None:
         if tts_engine.is_playing:
@@ -1125,7 +1238,12 @@ class WorldNewsApp(App):
         self._speak_sentences = None
 
     @work(group="tts", exclusive=True, thread=True)
-    def _speak_worker(self, text: str, sentences: list | None = None) -> None:
+    def _speak_worker(
+        self,
+        text: str,
+        sentences: list | None = None,
+        lang: str | None = None,
+    ) -> None:
         def on_sentence(i: int, s: str, all_s: list) -> None:
             self.call_from_thread(self._on_speak_sentence, i, s, all_s)
 
@@ -1134,6 +1252,7 @@ class WorldNewsApp(App):
                 text,
                 on_sentence=on_sentence if sentences else None,
                 sentences=sentences,
+                lang=lang,
             )
             play_err = getattr(tts_engine, "last_play_error", None)
             if play_err:
@@ -1335,5 +1454,10 @@ class WorldNewsApp(App):
 def run_app(
     start_feed: str | None = None,
     start_mode: str | None = None,
+    script_mode: str | None = None,
 ) -> None:
-    WorldNewsApp(start_feed=start_feed, start_mode=start_mode).run()
+    WorldNewsApp(
+        start_feed=start_feed,
+        start_mode=start_mode,
+        script_mode=script_mode,
+    ).run()

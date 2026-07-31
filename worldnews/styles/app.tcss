@@ -174,13 +174,107 @@ ArticleList {
     display: none;
     width: 100%;
     height: 1fr;
-    padding: 2 3;
+    padding: 1 2;
     background: $surface;
     color: $foreground;
 }
 
-#fetch-panel.visible {
+#fetch-panel.splash-on {
     display: block;
+}
+
+/* Animated ASCII splash (boot + fetch) — content centered in pane */
+.ascii-splash {
+    width: 100%;
+    height: 100%;
+    background: $surface;
+    align: center middle;
+    overflow: hidden;
+}
+
+.ascii-splash .splash-stage {
+    width: 100%;
+    height: auto;
+    align: center middle;
+    padding: 1 2;
+}
+
+.ascii-splash .splash-figlet,
+.ascii-splash .splash-figlet-widget {
+    width: 100%;
+    height: auto;
+    content-align: center middle;
+    text-align: center;
+    color: $accent;
+    margin: 0 0 1 0;
+}
+
+.ascii-splash .splash-rule {
+    width: 100%;
+    text-align: center;
+    content-align: center middle;
+    color: $panel;
+    height: 1;
+    margin: 0 0 1 0;
+}
+
+.ascii-splash .splash-tagline {
+    width: 100%;
+    text-align: center;
+    content-align: center middle;
+    color: $secondary;
+    height: 1;
+    margin: 0 0 1 0;
+}
+
+.ascii-splash .splash-subtitle {
+    width: 100%;
+    text-align: center;
+    content-align: center middle;
+    color: $primary;
+    text-style: bold;
+    height: 1;
+    margin: 0 0 1 0;
+}
+
+.ascii-splash .splash-status {
+    width: 100%;
+    text-align: center;
+    content-align: center middle;
+    color: $secondary;
+    height: 1;
+    margin-top: 1;
+}
+
+#splash-spinner {
+    width: 100%;
+    height: 1;
+    content-align: center middle;
+    color: $accent;
+    margin: 0 0 1 0;
+}
+
+/* Opening screen: full viewport, WORLD NEWS dead-center */
+#boot-splash {
+    display: none;
+    layer: overlay;
+    width: 100%;
+    height: 100%;
+    dock: top;
+    background: $background;
+    align: center middle;
+    padding: 0;
+    overflow: hidden;
+}
+
+#boot-splash.splash-on {
+    display: block;
+}
+
+#boot-splash .splash-stage {
+    width: 100%;
+    max-width: 100%;
+    padding: 2 4;
 }
 
 ArticleList > ListView,
@@ -193,6 +287,18 @@ ArticleList ListItem {
     padding: 0 1;
     height: 1;
     color: $foreground;
+    overflow: hidden;
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100%;
+}
+
+ArticleList ListItem > Label {
+    width: 1fr;
+    max-width: 100%;
+    overflow: hidden;
+    overflow-x: hidden;
+    height: 1;
 }
 
 ArticleList .list-item--highlighted {

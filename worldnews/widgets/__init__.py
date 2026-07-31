@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from textual.app import ComposeResult
 from textual.containers import Center, Horizontal, Middle, Vertical, VerticalScroll
 from textual.message import Message
@@ -10,6 +11,7 @@ from textual.widget import Widget
 from textual.widgets import Input, Label, ListItem, ListView, LoadingIndicator, Static
 
 from worldnews.analysis import SentimentAnalyzer, estimate_reading_time
+from worldnews.widgets.splash import AsciiSplash
 
 CATEGORIES = [
     ("general", "General"),
@@ -83,8 +85,10 @@ class ArticleItem(ListItem):
 
     ALLOW_SELECT = False
 
-    def __init__(self, label: Label, article_index: int) -> None:
-        super().__init__(label)
+    def __init__(
+        self, label: Label, article_index: int, *, classes: str | None = None
+    ) -> None:
+        super().__init__(label, classes=classes)
         self.article_index = article_index
 
 
@@ -108,9 +112,75 @@ def sentiment_glyph(article: dict) -> str:
 
 
 def short_time(published: str) -> str:
+    """Compact list date — never raw-slice RFC822 into 'Fri, 31 J'."""
     if not published:
         return ""
-    return published[:10] if len(published) >= 10 else published
+    s = str(published).strip()
+    if not s:
+        return ""
+
+    dt = None
+    # ISO / date-only
+    if len(s) >= 10 and s[4] == "-" and s[7] == "-":
+        try:
+            from datetime import datetime
+
+            dt = datetime.strptime(s[:10], "%Y-%m-%d")
+        except Exception:
+            dt = None
+    if dt is None:
+        try:
+            from email.utils import parsedate_to_datetime
+
+            dt = parsedate_to_datetime(s)
+        except Exception:
+            dt = None
+    if dt is not None:
+        try:
+            return dt.strftime("%d %b")  # e.g. 31 Jul
+        except Exception:
+            pass
+
+    # "31 Jul 2026" / "Jul 31, 2026" fragments
+    m = re.search(r"(\d{1,2})\s+([A-Za-z]{3})\b", s)
+    if m:
+        return f"{int(m.group(1)):02d} {m.group(2).title()}"
+    m = re.search(r"\b([A-Za-z]{3})\s+(\d{1,2})\b", s)
+    if m:
+        return f"{int(m.group(2)):02d} {m.group(1).title()}"
+    if len(s) >= 10 and s[4] == "-" and s[7] == "-":
+        return s[:10]
+    return s[:9].rstrip(", ")
+
+
+def pretty_time(published: str) -> str:
+    """Reader/meta date — readable, not a blind [:22] slice."""
+    if not published:
+        return ""
+    s = str(published).strip()
+    if not s:
+        return ""
+    dt = None
+    if len(s) >= 10 and s[4] == "-" and s[7] == "-":
+        try:
+            from datetime import datetime
+
+            dt = datetime.strptime(s[:10], "%Y-%m-%d")
+        except Exception:
+            dt = None
+    if dt is None:
+        try:
+            from email.utils import parsedate_to_datetime
+
+            dt = parsedate_to_datetime(s)
+        except Exception:
+            dt = None
+    if dt is not None:
+        try:
+            return dt.strftime("%d %b %Y")
+        except Exception:
+            pass
+    return short_time(s) or s[:20]
 
 
 class AppHeader(Static):
@@ -264,13 +334,7 @@ class ArticleList(BusyMixin, Vertical):
             yield Input(placeholder="Filter articles…", id="filter-input")
         with Vertical(id="list-stack", classes="fetching"):
             yield ListView(id="article-list")
-            yield Static(
-                "[bold #c45c26]↻  Starting…[/]\n\n"
-                "[dim]Loading World News…[/]",
-                id="fetch-panel",
-                markup=True,
-                classes="visible",
-            )
+            yield AsciiSplash(id="fetch-panel", classes="splash-on", feed_label="news")
 
     def show_fetching(self, label: str = "news") -> None:
         """Big visible fetch panel — never leave the list blank."""
@@ -285,38 +349,8 @@ class ArticleList(BusyMixin, Vertical):
         except Exception:
             pass
         try:
-            panel = self.query_one("#fetch-panel", Static)
-            try:
-                cols = int(self.app.size.width)
-            except Exception:
-                cols = 100
-            if cols < 56:
-                panel.update(
-                    f"[bold #c45c26]↻ {lab}[/]\n\n"
-                    f"[dim]Loading headlines…[/]\n"
-                    f"[dim]Please wait[/]"
-                )
-            elif cols < 84:
-                panel.update(
-                    f"[bold #c45c26]↻  Fetching {lab}[/]\n\n"
-                    f"[dim]Contacting sources…[/]\n"
-                    f"[dim]Headlines appear shortly.[/]\n\n"
-                    f"[dim]····················[/]"
-                )
-            else:
-                panel.update(
-                    f"[bold #c45c26]↻  Fetching {lab}[/]\n\n"
-                    f"[dim]Contacting news sources…[/]\n"
-                    f"[dim]Headlines will appear here in a few seconds.[/]\n\n"
-                    f"[dim]······························[/]\n"
-                    f"[dim]························[/]\n"
-                    f"[dim]································[/]\n"
-                    f"[dim]····················[/]\n\n"
-                    f"[dim]Tip: press r later to refresh[/]"
-                )
-            panel.add_class("visible")
-            panel.display = True
-            panel.styles.display = "block"
+            panel = self.query_one("#fetch-panel", AsciiSplash)
+            panel.show_for(lab)
         except Exception:
             pass
         try:
@@ -326,11 +360,11 @@ class ArticleList(BusyMixin, Vertical):
 
     def hide_fetching(self) -> None:
         try:
-            panel = self.query_one("#fetch-panel", Static)
-            panel.remove_class("visible")
+            panel = self.query_one("#fetch-panel", AsciiSplash)
+            panel.stop()
+            panel.remove_class("splash-on")
             panel.display = False
             panel.styles.display = "none"
-            panel.update("")
         except Exception:
             pass
         try:
@@ -344,40 +378,96 @@ class ArticleList(BusyMixin, Vertical):
         except Exception:
             pass
 
+    def _usable_list_cols(self) -> int:
+        """Width of the headline pane — not the full terminal (avoids border bleed)."""
+        for node_id in ("#article-list", "#list-stack"):
+            try:
+                w = int(self.query_one(node_id).size.width)
+                if w >= 18:
+                    return max(18, w - 2)  # ListItem padding
+            except Exception:
+                pass
+        try:
+            w = int(self.size.width)
+            if w >= 18:
+                return max(18, w - 2)
+        except Exception:
+            pass
+        try:
+            w = int(self.app.query_one("#article-pane").size.width)
+            if w >= 18:
+                return max(18, w - 2)
+        except Exception:
+            pass
+        try:
+            # sidebar (~22) + reader (~40%) + chrome — rough middle third
+            return max(28, int(self.app.size.width) // 3)
+        except Exception:
+            return 48
+
     def _row_label(self, a: dict, i: int) -> ArticleItem:
-        title = a.get("title", "")
-        source = a.get("source", "?")
+        from worldnews.text_display import (
+            ascii_list_headline,
+            display_width,
+            needs_ascii_list_label,
+            normalize_script_mode,
+            pad_display,
+            truncate_display,
+        )
+
+        title = a.get("title", "") or ""
+        source = a.get("source", "?") or "?"
         lang = (a.get("lang") or "").strip().upper()
         url = a.get("url", "")
         is_bm = bool(self.bookmarks and self.bookmarks.has(url))
         is_read = bool(self.settings and self.settings.is_read(url))
-        mark = "★" if is_bm else ("○" if is_read else "●")
+        # ASCII-width-stable marks (★/● often paint 2 cells → border bleed)
+        mark = "*" if is_bm else ("o" if is_read else "+")
         sent = sentiment_glyph(a)
         when = short_time(a.get("published", ""))
+        cols = self._usable_list_cols()
+
+        mode = "safe"
         try:
-            cols = int(self.app.size.width)
+            mode = normalize_script_mode(
+                getattr(self.app, "script_mode", None)
+                or getattr(self.settings, "script_mode", "safe")
+            )
         except Exception:
-            cols = 100
-        # Adaptive row density for Termux / phone terminals
-        if cols < 48:
-            t = title[: max(12, cols - 6)]
-            if len(title) > len(t):
-                t += "…"
-            line = f"{mark} {t}"
-        elif cols < 72:
-            t = title[:28] + ("…" if len(title) > 28 else "")
-            src = (source[:7] + "…") if len(source) > 7 else source
-            line = f"{mark} {sent}  {t:<29}  {src}"
-        elif cols < 100:
-            t = title[:34] + ("…" if len(title) > 34 else "")
-            src = (source[:9] + "…") if len(source) > 9 else source
-            lang_bit = f" [{lang}]" if lang else ""
-            line = f"{mark} {sent}  {t:<35}  {src:<9}{lang_bit}"
+            mode = "safe"
+
+        if needs_ascii_list_label(title, lang, mode=mode):
+            head = ascii_list_headline(title, lang)
         else:
-            t = title[:38] + ("…" if len(title) > 38 else "")
-            src = (source[:9] + "…") if len(source) > 9 else source
-            lang_bit = f" [{lang}]" if lang else ""
-            line = f"{mark} {sent}  {t:<39}  {src:<9}{lang_bit}  {when}"
+            head = title
+
+        # Dynamic budgets so the single line never exceeds the pane width
+        show_when = bool(when) and cols >= 42
+        show_src = cols >= 36
+        show_lang = bool(lang) and cols >= 56
+        when_bit = f"  {when}" if show_when else ""
+        lang_bit = f" [{lang}]" if show_lang else ""
+        src_w = 10 if cols >= 56 else (8 if cols >= 44 else 6)
+        fixed = (
+            display_width(f"{mark} {sent}  ")
+            + (src_w + 2 if show_src else 0)
+            + display_width(lang_bit)
+            + display_width(when_bit)
+        )
+        title_w = max(8, cols - fixed)
+
+        t = truncate_display(head, title_w)
+        if show_src:
+            # Pad title only when we have room for a source column
+            t = pad_display(t, title_w)
+            src = pad_display(truncate_display(source, src_w), src_w)
+            line = f"{mark} {sent}  {t}  {src}{lang_bit}{when_bit}"
+        else:
+            line = f"{mark} {sent}  {t}"
+
+        # Final safety clip (ambiguous glyphs / padding drift)
+        if display_width(line) > cols:
+            line = truncate_display(line, cols)
         return ArticleItem(RowLabel(line), i)
 
     def set_articles(
@@ -472,6 +562,38 @@ class ArticleList(BusyMixin, Vertical):
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id == "filter-input":
             self.set_articles(self.articles, event.value)
+
+    def on_resize(self) -> None:
+        """Re-fit row labels when the middle pane width changes."""
+        if not self.articles:
+            return
+        try:
+            w = int(self.size.width)
+        except Exception:
+            return
+        prev = getattr(self, "_last_list_w", 0)
+        self._last_list_w = w
+        if prev and abs(prev - w) < 3:
+            return
+        try:
+            filt = ""
+            try:
+                filt = self.query_one("#filter-input", Input).value
+            except Exception:
+                pass
+            idx = None
+            try:
+                idx = self.query_one("#article-list", ListView).index
+            except Exception:
+                pass
+            self.set_articles(self.articles, filt, has_more=self._has_more)
+            if idx is not None:
+                try:
+                    self.query_one("#article-list", ListView).index = idx
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
 
 class ArticleReader(BusyMixin, Vertical):
@@ -675,9 +797,17 @@ class ArticleReader(BusyMixin, Vertical):
                 except Exception:
                     pass
 
-        title = article.get("title", "Untitled")
-        title_w.update(title)
+        from worldnews.text_display import (
+            ascii_list_headline,
+            needs_complex_layout,
+            normalize_nfc,
+            normalize_script_mode,
+            script_label,
+            should_hide_in_tui,
+            soft_wrap_display,
+        )
 
+        title = article.get("title", "Untitled") or "Untitled"
         published = article.get("published", "") or ""
         author = article.get("author", "") or ""
         desc = article.get("description", "") or ""
@@ -686,17 +816,46 @@ class ArticleReader(BusyMixin, Vertical):
         rt = estimate_reading_time(desc)
         sent = sentiment_glyph(article)
         saved = bool(self.bookmarks and url and self.bookmarks.has(url))
+        lang = (article.get("lang") or "").strip().upper()
+
+        try:
+            pane_w = max(20, int(self.size.width) - 4)
+        except Exception:
+            pane_w = 60
+
+        mode = "safe"
+        try:
+            mode = normalize_script_mode(
+                getattr(self.app, "script_mode", None)
+                or (
+                    getattr(self.app, "settings", None)
+                    and getattr(self.app.settings, "script_mode", "safe")
+                )
+            )
+        except Exception:
+            mode = "safe"
+
+        sample = f"{title}\n{desc}"
+        hide_hostile = should_hide_in_tui(sample, lang, mode)
+        complex_body = needs_complex_layout(sample, lang)
+        lang_name = script_label(lang, sample)
+
+        if hide_hostile:
+            title_w.update(ascii_list_headline(title, lang))
+        elif complex_body:
+            title_w.update(soft_wrap_display(normalize_nfc(title), pane_w))
+        else:
+            title_w.update(title)
 
         bits = []
         if source:
             bits.append(f"[b]{escape(source)}[/]")
-        lang = (article.get("lang") or "").strip().upper()
         if lang:
             from worldnews.scraper import lang_display_name
 
             bits.append(f"lang {lang_display_name(lang)}")
         if published:
-            bits.append(escape(published[:22]))
+            bits.append(escape(pretty_time(published)))
         if author:
             bits.append(escape(author))
         bits.append(rt)
@@ -707,15 +866,34 @@ class ArticleReader(BusyMixin, Vertical):
             bits.append("loading image…")
         if article.get("body_fetched") and len(desc) > 600:
             bits.append("full story")
+        if hide_hostile:
+            bits.append("t Speak · o browser")
         meta_w.update("  ·  ".join(bits))
 
         from worldnews.images import format_article_body
 
         body = format_article_body(desc)
         plain = body.replace("**", "")
+        if hide_hostile:
+            tip = (
+                f"[{ascii_list_headline(title, lang)}]\n\n"
+                f"{lang_name} text cannot render cleanly in most terminals "
+                "(Windows Terminal included).\n\n"
+                "Press t to hear the full story aloud "
+                "(works for any language).\n"
+                "Press o to open it in your browser.\n"
+                "Settings → Scripts → native shows glyphs "
+                "(may still overlap).\n"
+            )
+            display_plain = tip
+        elif complex_body:
+            display_plain = soft_wrap_display(normalize_nfc(plain), pane_w)
+        else:
+            display_plain = plain
         if url:
             plain = f"{plain}\n\n↗ {url}"
-        body_w.update(escape(plain))
+            display_plain = f"{display_plain}\n\n↗ {url}"
+        body_w.update(escape(display_plain))
 
         try:
             from textual.widgets import Button
@@ -726,7 +904,8 @@ class ArticleReader(BusyMixin, Vertical):
             pass
 
         self._shown_url = url
-        self._body_plain = plain  # used for in-place Speak highlighting
+        self._body_plain = plain  # unwrapped — used for Speak / TTS (audio)
+        self._hide_hostile_display = hide_hostile
         if keep_y is not None:
             try:
                 self.call_after_refresh(
@@ -768,6 +947,22 @@ class ArticleReader(BusyMixin, Vertical):
     def set_reading_highlight(self, sentences: list[str], index: int) -> None:
         """Highlight the spoken sentence inside the existing body (no layout swap)."""
         if not sentences:
+            return
+        # Never paint terminal-hostile glyphs during Speak — they bleed the layout
+        if getattr(self, "_hide_hostile_display", False):
+            try:
+                eye = self.query_one("#reader-eyebrow", Label)
+                eye.update(f"SPEAKING  ·  {index + 1}/{len(sentences)}")
+                self.set_active_action("speak")
+                # Progress-only body — no native glyphs (avoids bleed)
+                body_w = self.query_one("#reader-body", Static)
+                body_w.update(
+                    f"Listening… part {index + 1} of {len(sentences)}\n\n"
+                    "Press t again to stop.\n"
+                    "Press o to open the story in your browser."
+                )
+            except Exception:
+                pass
             return
         index = max(0, min(index, len(sentences) - 1))
         current = (sentences[index] or "").strip()
@@ -826,16 +1021,8 @@ class ArticleReader(BusyMixin, Vertical):
             source = (article or {}).get("source", "") or "Unknown"
             if article:
                 eye.update(f"ARTICLE  ·  {source.upper()}")
-                from rich.markup import escape
-                from worldnews.images import format_article_body
-
-                desc = article.get("description", "") or ""
-                url = article.get("url", "") or ""
-                plain = format_article_body(desc).replace("**", "")
-                if url:
-                    plain = f"{plain}\n\n↗ {url}"
-                self._body_plain = plain
-                self.query_one("#reader-body", Static).update(escape(plain))
+                # Re-run show_article path so safe/plain stay Latin-only
+                self.show_article(article)
             else:
                 eye.update("ARTICLE")
         except Exception:

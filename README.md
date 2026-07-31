@@ -98,6 +98,7 @@ On narrow terminals (about under 84 columns), the app switches to a phone layout
 - Categories such as General, Tech, AI, Sports, Anime, plus All, Bookmarks, Offline, and My Feeds
 - Custom sites via palette `add-feed` (website or RSS; feed discovery when possible)
 - Infinite scroll on headline lists (50 at a time)
+- Animated ASCII boot / fetch splash (WORLD NEWS figlet + gradient)
 - Themes: Newsroom (default), Phosphor, Broadsheet, Nord, GitHub Dark, High Contrast
 - AI summarize / explain / chat (default free provider needs no key; many others supported)
 - Speak (`t`) with free Edge TTS by default; optional Fish Audio, Gemini, Groq, and paid live providers
@@ -136,6 +137,24 @@ Flow: `s` → Voice → provider → model → voice (or paste id/URL) → API k
 You can also set `FISH_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, and similar env vars.
 
 Provider docs: [Fish](https://docs.fish.audio/) · [Gemini speech](https://ai.google.dev/gemini-api/docs/speech-generation) · [Groq TTS](https://console.groq.com/docs/text-to-speech)
+
+## Complex scripts (Malayalam, Hindi, Arabic, …)
+
+Cell-grid terminals (including Windows Terminal) often **cannot shape** Indic scripts the way a browser does. World News keeps the TUI usable with a safe default:
+
+| Mode | How to enable | Behavior |
+| ---- | ------------- | -------- |
+| **safe** (default) | Settings → App → Scripts, or no flag | No Indic/Arabic glyphs in the TUI (list + reader); press **o** for browser |
+| **plain** | `--plain` / `--ascii` | Same as safe for hostile scripts |
+| **native** | `--native-titles` | Show native script in list/reader (may still overlap on Windows Terminal) |
+
+**Fonts / hosts**
+
+- **Windows:** use [Windows Terminal](https://aka.ms/terminal), not legacy `cmd.exe`. Set the profile font to **Nirmala UI** or **Noto Sans Malayalam**.
+- **Termux:** install a Malayalam-capable font (e.g. Noto) via your font packages.
+- **Linux / macOS:** UTF-8 locale (`LANG=*.UTF-8`) + Noto / Meera / Rachana.
+
+Startup forces UTF-8 I/O and enables Windows virtual terminal processing when possible. Full OpenType shaping still requires a capable terminal + font — for clearest reading press **o** (open in browser).
 
 ## Phone and small terminals
 
