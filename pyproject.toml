@@ -71,8 +71,8 @@ voice = [
 [project.urls]
 Homepage = "https://pypi.org/project/worldnews-cli/"
 # After you create the GitHub repo, set these to your real URLs:
-# Repository = "https://github.com/YOUR_USER/news-cli"
-# Issues = "https://github.com/YOUR_USER/news-cli/issues"
+# Repository = "https://github.com/nishal21/news-cli"
+# Issues = "https://github.com/nishal21/news-cli/issues"
 Documentation = "https://pypi.org/project/worldnews-cli/"
 
 [project.scripts]
