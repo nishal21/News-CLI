@@ -24,6 +24,7 @@ CATEGORIES = [
     ("sports", "Sports"),
     ("gaming", "Gaming"),
     ("tech", "Tech"),
+    ("hn", "Hacker News"),
     ("business", "Business"),
     ("science", "Science"),
     ("ai", "AI"),

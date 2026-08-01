@@ -1226,6 +1226,117 @@ class Scraper:
                 )
         return arts[:limit]
 
+    def _hn(self, limit: int = 40) -> list:
+        """Hacker News via official RSS, with Firebase API fill for depth."""
+        arts: list[dict] = []
+        seen: set[str] = set()
+        api = "https://hacker-news.firebaseio.com/v0"
+
+        def _add(a: dict) -> None:
+            url = a.get("url") or ""
+            if not url or url in seen or len(arts) >= limit:
+                return
+            seen.add(url)
+            arts.append(a)
+
+        # Official RSS (hnrss.org often SSL-fails under cloudscraper)
+        try:
+            for a in self._rss("https://news.ycombinator.com/rss", "Hacker News"):
+                _add(a)
+                if len(arts) >= limit:
+                    return arts[:limit]
+        except Exception:
+            pass
+
+        need = limit - len(arts)
+        if need <= 0:
+            return arts[:limit]
+
+        ids: list[int] = []
+        for endpoint in ("topstories", "beststories", "newstories"):
+            if len(ids) >= need + 10:
+                break
+            try:
+                r = self.client.get(
+                    f"{api}/{endpoint}.json",
+                    timeout=20,
+                    headers={"Accept": "application/json", "User-Agent": "worldnews-cli"},
+                )
+                r.raise_for_status()
+                chunk = r.json() or []
+                if isinstance(chunk, list):
+                    ids.extend(int(x) for x in chunk[: need + 15] if x is not None)
+            except Exception:
+                continue
+
+        uniq: list[int] = []
+        seen_id: set[int] = set()
+        for i in ids:
+            if i in seen_id:
+                continue
+            seen_id.add(i)
+            uniq.append(i)
+
+        for item_id in uniq:
+            if len(arts) >= limit:
+                break
+            try:
+                r = self.client.get(
+                    f"{api}/item/{item_id}.json",
+                    timeout=12,
+                    headers={"Accept": "application/json", "User-Agent": "worldnews-cli"},
+                )
+                r.raise_for_status()
+                row = r.json() or {}
+            except Exception:
+                continue
+            if not isinstance(row, dict) or row.get("type") not in ("story", "job"):
+                continue
+            if row.get("dead") or row.get("deleted"):
+                continue
+            title = html.unescape(str(row.get("title") or "")).strip()
+            if _is_junk_headline(title):
+                continue
+            link = (row.get("url") or "").strip()
+            if not link:
+                link = f"https://news.ycombinator.com/item?id={item_id}"
+            if link in seen:
+                continue
+            score = row.get("score")
+            comments = row.get("descendants")
+            by = row.get("by") or ""
+            bits = []
+            if score is not None:
+                bits.append(f"{score} points")
+            if comments is not None:
+                bits.append(f"{comments} comments")
+            bits.append("on Hacker News")
+            meta = " · ".join(bits)
+            body = _plain_from_html(row.get("text") or "", max_len=1200)
+            desc = f"{meta}. {body}".strip() if body else f"{meta}."
+            pub = ""
+            ts = row.get("time")
+            if isinstance(ts, (int, float)) and ts > 0:
+                try:
+                    pub = time.strftime("%Y-%m-%d", time.gmtime(ts))
+                except Exception:
+                    pub = ""
+            _add(
+                {
+                    "title": title,
+                    "source": "Hacker News",
+                    "author": by,
+                    "published": pub,
+                    "description": desc or "No description",
+                    "url": link,
+                    "image_url": "",
+                    "lang": "EN",
+                    "hn_id": item_id,
+                    "hn_discussion": f"https://news.ycombinator.com/item?id={item_id}",
+                }
+            )
+        return arts[:limit]
+
     def enrich_article(self, article: dict, delay: bool = True) -> dict:
         """Fetch the article URL → title, image, and full story body."""
         out = dict(article)
@@ -1307,6 +1418,8 @@ class Scraper:
                     items = self._anilist(int(s.get("limit") or 24))
                 elif stype == "mal":
                     items = self._mal(int(s.get("limit") or 24))
+                elif stype == "hn":
+                    items = self._hn(int(s.get("limit") or 40))
                 elif stype == "rss":
                     items = self._rss(s.get("url", ""), s.get("name", ""))
                 else:
@@ -1842,6 +1955,9 @@ NEWS_SOURCES = {
         {"type": "rss", "url": "https://huggingface.co/blog/feed.xml", "name": "Hugging Face"},
         {"type": "rss", "url": "https://www.technologyreview.com/topic/artificial-intelligence/feed", "name": "MIT AI"},
         {"type": "rss", "url": "https://venturebeat.com/category/ai/feed/", "name": "VentureBeat AI"},
+    ],
+    "hn": [
+        {"type": "hn", "trust": True, "limit": 40},
     ],
 }
 

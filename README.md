@@ -107,7 +107,7 @@ On narrow terminals (about under 84 columns), the app switches to a phone layout
 
 ## What you get
 
-- Categories such as General, Tech, AI, Sports, Anime, plus All, Bookmarks, Offline, and My Feeds
+- Categories such as General, Tech, Hacker News, AI, Sports, Anime, plus All, Bookmarks, Offline, and My Feeds
 - Custom sites via palette `add-feed` (website or RSS; feed discovery when possible)
 - Infinite scroll on headline lists (50 at a time)
 - Animated ASCII boot / fetch splash (WORLD NEWS figlet + gradient)

@@ -477,7 +477,7 @@ class WorldNewsApp(App):
         cached = False
         try:
             if feed_id == "all":
-                for c in ("general", "anime", "marvel", "tech", "sports", "science", "gaming", "ai"):
+                for c in ("general", "anime", "marvel", "tech", "hn", "sports", "science", "gaming", "ai"):
                     chunk = self.cache.get(c)
                     if chunk is None:
                         chunk = self.scraper.fetch(c)
