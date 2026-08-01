@@ -1,13 +1,13 @@
 # World News CLI
 
 [Website](https://nishal21.github.io/News-CLI/)
-[PyPI](https://pypi.org/project/worldnews-cli/0.4.3/)
+[PyPI](https://pypi.org/project/worldnews-cli/0.4.4/)
 [Python](https://pypi.org/project/worldnews-cli/)
 [License: MIT](LICENSE)
 
 Full-screen terminal news reader built with [Textual](https://textual.textualize.io/). Sidebar, headlines, article pane, themes, AI summarize/explain, and text-to-speech that can highlight the sentence being read.
 
-**Website:** [nishal21.github.io/News-CLI](https://nishal21.github.io/News-CLI/) · **Author:** [nishal.dev](https://nishal.dev) · **PyPI:** [worldnews-cli](https://pypi.org/project/worldnews-cli/0.4.3/)
+**Website:** [nishal21.github.io/News-CLI](https://nishal21.github.io/News-CLI/) · **Author:** [nishal.dev](https://nishal.dev) · **PyPI:** [worldnews-cli](https://pypi.org/project/worldnews-cli/0.4.4/)
 
 Requires Python 3.9+.
 
