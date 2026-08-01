@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "worldnews-cli"
-version = "0.4.3"
+version = "0.4.4"
 description = "Full-screen Textual TUI news reader with RSS, themes, AI summarize, and TTS"
 readme = "README.md"
 license = "MIT"
